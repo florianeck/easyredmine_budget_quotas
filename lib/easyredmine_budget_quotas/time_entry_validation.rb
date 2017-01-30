@@ -4,7 +4,7 @@ module EasyredmineBudgetQuotas
     extend ActiveSupport::Concern
 
     included do
-      before_save :check_if_budget_quota_valid if: :applies_on_budget_or_quota?
+      before_save :check_if_budget_quota_valid, if: :applies_on_budget_or_quota?
       before_save :verify_valid_from_to, if: :is_budget_quota?
     end
 
@@ -33,12 +33,31 @@ module EasyredmineBudgetQuotas
 
     private
 
+    def check_if_budget_quota_valid
+      # check if choosen source is available
+      if budget_quota_source.to_s.match(/budget|quota/) && self.project.send("current_#{budget_quota_source}_entry_valid?")
+        already_spent = self.project.query_spent_entries_on(type: budget_quota_source).map(&:price).sum
+        will_be_spent = EasyMoneyTimeEntryExpense.compute_expense(self, project.external_rate_id)
+
+        can_be_spent = project.send("current_#{budget_quota_source}_value").to_f
+
+        if can_be_spent < already_spent+will_be_spent
+          self.errors.add(:ebq_budget_quota_value, "Limit of #{can_be_spent} for #{budget_quota_source} will be exceeded (#{already_spent+will_be_spent}) - cant add entry")
+          return false
+        end
+      else
+        self.errors.add(:ebq_budget_quota_source, "Using #{budget_quota_source} is not available for this project. No valid #{budget_quota_source} entry found.")
+        return false
+      end
+
+    end
+
     def applies_on_quota?
-      budget_quota_source == 'budget'
+      budget_quota_source == 'quota'
     end
 
     def applies_on_budget?
-      budget_quota_source == 'quota'
+      budget_quota_source == 'budget'
     end
 
     def applies_on_budget_or_quota?

@@ -7,7 +7,7 @@ module EasyredmineBudgetQuotas
     end
 
     def quota_entry_activities
-      TimeEntryActivity.where(ebq_data_type: 'budget')
+      TimeEntryActivity.where(ebq_data_type: 'quota')
     end
 
   end
