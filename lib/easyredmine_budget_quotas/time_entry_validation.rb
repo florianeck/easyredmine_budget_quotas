@@ -35,21 +35,48 @@ module EasyredmineBudgetQuotas
 
     def check_if_budget_quota_valid
       # check if choosen source is available
-      if budget_quota_source.to_s.match(/budget|quota/) && self.project.send("current_#{budget_quota_source}_entry_valid?")
-        already_spent = self.project.query_spent_entries_on(type: budget_quota_source).map(&:price).sum
-        will_be_spent = EasyMoneyTimeEntryExpense.compute_expense(self, project.external_rate_id)
+      if budget_quota_source.to_s.match(/budget|quota/)
 
-        can_be_spent = project.send("current_#{budget_quota_source}_value").to_f
+        current_bq = self.project.get_current_budget_quota_entry(type: budget_quota_source.to_sym, ref_date: self.spent_on)
 
-        if can_be_spent < already_spent+will_be_spent
-          self.errors.add(:ebq_budget_quota_value, "Limit of #{can_be_spent} for #{budget_quota_source} will be exceeded (#{already_spent+will_be_spent}) - cant add entry")
+        if current_bq.nil?
+          self.errors.add(:ebq_budget_quota_source, "No #{budget_quota_source} is defined/available for this project at #{self.spent_on}")
+          return false
+        elsif current_bq.try(:easy_locked?)
+
+          already_spent = self.project.query_spent_entries_on(type: budget_quota_source, ref_date: self.spent_on).map(&:price).sum
+
+          if self.persisted?
+            # need to substract existing time entry
+            r = EasyMoneyTimeEntryExpense.easy_money_time_entries_by_time_entry_and_rate_type(self, EasyMoneyRateType.find_by(name: 'internal')).first
+            already_spent -= r.price if r
+          end
+
+          will_be_spent = EasyMoneyTimeEntryExpense.compute_expense(self, project.calculation_rate_id)
+          can_be_spent  = current_bq.try(:budget_quota_value).to_f
+
+          if can_be_spent < already_spent+will_be_spent
+            self.errors.add(:ebq_budget_quota_value, "Limit of #{can_be_spent} for #{budget_quota_source} will be exceeded (#{already_spent+will_be_spent}) - cant add entry")
+            return false
+          else
+            assign_custom_field_value_for_ebq_budget_quota!(id: current_bq.id, value: will_be_spent*-1)
+          end
+        else
+          self.errors.add(:ebq_budget_quota_source, "Found entry for #{budget_quota_source} - but entry is not locked yet")
           return false
         end
       else
-        self.errors.add(:ebq_budget_quota_source, "Using #{budget_quota_source} is not available for this project. No valid #{budget_quota_source} entry found.")
+        self.errors.add(:ebq_budget_quota_source, "Invalid source name #{budget_quota_source}")
         return false
       end
 
+    end
+
+    def assign_custom_field_value_for_ebq_budget_quota!(id: , value: )
+      cf_id     = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_id' }
+      cf_value  = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_value' }
+      binding.pry
+      self.custom_field_values = {cf_id.id => id, cf_value.id => value}
     end
 
     def applies_on_quota?
