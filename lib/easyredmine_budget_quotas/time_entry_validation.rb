@@ -75,7 +75,6 @@ module EasyredmineBudgetQuotas
     def assign_custom_field_value_for_ebq_budget_quota!(id: , value: )
       cf_id     = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_id' }
       cf_value  = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_value' }
-      binding.pry
       self.custom_field_values = {cf_id.id => id, cf_value.id => value}
     end
 
