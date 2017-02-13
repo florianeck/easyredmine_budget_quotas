@@ -2,7 +2,6 @@ module EasyredmineBudgetQuotas
   module TimeEntryValidation
 
     extend ActiveSupport::Concern
-
     included do
       before_save :check_if_budget_quota_valid, if: :applies_on_budget_or_quota?
       before_save :verify_valid_from_to, if: :is_budget_quota?
@@ -55,7 +54,8 @@ module EasyredmineBudgetQuotas
           will_be_spent = EasyMoneyTimeEntryExpense.compute_expense(self, project.calculation_rate_id)
           can_be_spent  = current_bq.try(:budget_quota_value).to_f
 
-          if can_be_spent < already_spent+will_be_spent
+          # using tolerance of 1 EUR here
+          if (can_be_spent + 1) < already_spent+will_be_spent
             self.errors.add(:ebq_budget_quota_value, "Limit of #{can_be_spent} for #{budget_quota_source} will be exceeded (#{already_spent+will_be_spent}) - cant add entry")
             return false
           else
