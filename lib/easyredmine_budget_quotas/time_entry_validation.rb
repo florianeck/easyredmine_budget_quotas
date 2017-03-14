@@ -3,7 +3,7 @@ module EasyredmineBudgetQuotas
 
     extend ActiveSupport::Concern
     included do
-      before_save :check_if_budget_quota_valid, if: :applies_on_budget_or_quota?
+      before_save :check_if_budget_quota_valid, if: :applies_on_budget_or_quota?, :project_uses_budget_quota?
       before_save :verify_valid_from_to, if: :is_budget_quota?
     end
 
@@ -100,6 +100,10 @@ module EasyredmineBudgetQuotas
       self.errors.add(:valid_to, 'required') if ebq_custom_field_value('ebq_valid_to').nil?
 
       return self.errors.empty?
+    end
+
+    def project_uses_budget_quota?
+      self.project.module_enabled?(:budget_quotas)
     end
 
 
