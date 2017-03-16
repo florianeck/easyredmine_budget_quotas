@@ -3,11 +3,8 @@ module EasyredmineBudgetQuotas
 
     extend ActiveSupport::Concern
     included do
-      before_save :check_if_budget_quota_valid, if: :applies_on_budget_or_quota?, :project_uses_budget_quota?
-      before_save :verify_valid_from_to, if: :is_budget_quota?
-    end
-
-    def check_if_budget_quota_valid
+      before_save :check_if_budget_quota_valid, if: [:applies_on_budget_or_quota?, :project_uses_budget_quota?]
+      before_save :verify_valid_from_to, if: [:is_budget_quota?, :project_uses_budget_quota?]
     end
 
     def valid_from
@@ -47,7 +44,7 @@ module EasyredmineBudgetQuotas
 
           if self.persisted?
             # need to substract existing time entry
-            r = EasyMoneyTimeEntryExpense.easy_money_time_entries_by_time_entry_and_rate_type(self, EasyMoneyRateType.find_by(name: 'internal')).first
+            r = EasyMoneyTimeEntryExpense.easy_money_time_entries_by_time_entry_and_rate_type(self, EasyMoneyRateType.find_by(name: project.budget_quotas_money_rate_type)).first
             already_spent -= r.price if r
           end
 
@@ -55,7 +52,7 @@ module EasyredmineBudgetQuotas
           can_be_spent  = current_bq.try(:budget_quota_value).to_f
 
           # using tolerance of 1 EUR here
-          if (can_be_spent + 1) < already_spent+will_be_spent
+          if (can_be_spent + project.budget_quotas_tolerance_amount) < already_spent+will_be_spent
             self.errors.add(:ebq_budget_quota_value, "Limit of #{can_be_spent} for #{budget_quota_source} will be exceeded (#{already_spent+will_be_spent}) - cant add entry")
             return false
           else
