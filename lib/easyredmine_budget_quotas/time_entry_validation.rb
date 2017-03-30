@@ -6,7 +6,7 @@ module EasyredmineBudgetQuotas
       before_save :check_if_budget_quota_valid, if: [:applies_on_budget_or_quota?, :project_uses_budget_quota?]
       before_save :verify_valid_from_to, if: [:is_budget_quota?, :project_uses_budget_quota?]
       after_create :set_self_ebq_budget_quota_id, if: :is_budget_quota?
-      after_create :create_next_time_entry, if: proc { binding.pry; remaining_values_for_assignment.present?}
+      after_create :create_next_time_entry, if: proc { remaining_values_for_assignment.present? }
 
       attr_accessor :remaining_values_for_assignment
     end
@@ -71,8 +71,6 @@ module EasyredmineBudgetQuotas
 
             assignable_hours = assignable_value/value_per_hour
 
-            binding.pry
-
             # get current indx from comment
             comment_id = self.comments.match(/(?<=\[)[0-9]{1,}/)
             if comment_id.nil?
@@ -83,10 +81,11 @@ module EasyredmineBudgetQuotas
 
 
             # store values for next time entry and close current BudgetQuota
-            @remaining_values_for_assignment = self.attributes.merge(hours: self.hours - assignable_hours)
+            @remaining_values_for_assignment = self.attributes.merge('hours' => self.hours - assignable_hours)
             current_bqs.first.update_column(:budget_quota_exceeded, true)
 
             # Assign currently applicable value
+            self.hours = assignable_hours
             assign_custom_field_value_for_ebq_budget_quota!(id: current_bqs.first.id, value: assignable_hours*value_per_hour*-1)
           else
             assign_custom_field_value_for_ebq_budget_quota!(id: current_bqs.first.id, value: will_be_spent*-1)
@@ -100,7 +99,10 @@ module EasyredmineBudgetQuotas
     end
 
     def create_next_time_entry
-      self.class.create(  remaining_values_for_assignment)
+      next_entry = self.class.new(remaining_values_for_assignment.except('id', 'user_id', 'tyear', 'tmonth', 'tweek'))
+      next_entry.user_id = self.user_id
+      cf_source = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_source' }
+      next_entry.custom_field_values = {cf_source.id => self.budget_quota_source}
     end
 
 
