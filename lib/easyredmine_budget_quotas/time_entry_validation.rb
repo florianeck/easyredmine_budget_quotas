@@ -5,7 +5,7 @@ module EasyredmineBudgetQuotas
     included do
       before_save :check_if_budget_quota_valid, if: [:applies_on_budget_or_quota?, :project_uses_budget_quota?]
       before_save :verify_valid_from_to, if: [:is_budget_quota?, :project_uses_budget_quota?]
-      after_create :set_ebq_budget_quota_id, if: :is_budget_quota?
+      after_create :set_self_ebq_budget_quota_id, if: :is_budget_quota?
     end
 
     def valid_from
@@ -40,7 +40,9 @@ module EasyredmineBudgetQuotas
           self.errors.add(:ebq_budget_quota_source, "No #{budget_quota_source} is defined/available for this project at #{self.spent_on}")
           return false
         elsif current_bq.try(:easy_locked?)
-
+          self.errors.add(:ebq_budget_quota_source, "Found entry for #{budget_quota_source} - but entry is already locked!")
+          return false
+        else
           already_spent = self.project.query_spent_entries_on(type: budget_quota_source, ref_date: self.spent_on).map(&:price).sum
 
           if self.persisted?
@@ -60,9 +62,6 @@ module EasyredmineBudgetQuotas
             # TODO: 'current_bq' needs also to have have its own id referenced in CF ebq_budget_quota_id
             assign_custom_field_value_for_ebq_budget_quota!(id: current_bq.id, value: will_be_spent*-1)
           end
-        else
-          self.errors.add(:ebq_budget_quota_source, "Found entry for #{budget_quota_source} - but entry is not locked yet")
-          return false
         end
       else
         self.errors.add(:ebq_budget_quota_source, "Invalid source name #{budget_quota_source}")
