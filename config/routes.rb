@@ -1,0 +1,1 @@
+post "/budget_quotas/update_project_settings/:id" => "budget_quotas#update_project_settings", as: :update_budget_quota_project_settings

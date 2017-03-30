@@ -1,0 +1,18 @@
+<%= form_for(@project, url: update_budget_quota_project_settings_path(id: @project.id), html: {method: :post, :class => 'tabular form-box'}) do |f| %>
+  <div class="box">
+    <p>
+      <%= f.label :budget_quotas_money_rate_type %>
+      <%= f.select :budget_quotas_money_rate_type, EasyMoneyRateType.active.map(&:name) %>
+    </p>
+
+    <p>
+      <%= f.label :budget_quotas_tolerance_amount %>
+      <%= f.text_field :budget_quotas_tolerance_amount %>
+    </p>
+  </div>
+  <div class="form-actions">
+    <%= submit_tag l(:button_save), :class => 'button-positive' %>
+  </div>
+<% end %>
+
+

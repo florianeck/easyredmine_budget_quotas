@@ -13,7 +13,7 @@ end
 require 'easyredmine_budget_quotas'
 require 'easyredmine_budget_quotas/project_budget_quota'
 require 'easyredmine_budget_quotas/time_entry_validation'
-
+require 'easyredmine_budget_quotas/hooks'
 
 
 

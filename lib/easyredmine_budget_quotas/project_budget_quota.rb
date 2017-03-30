@@ -24,7 +24,7 @@ module EasyredmineBudgetQuotas
     end
 
     def calculation_rate_id
-      EasyMoneyRateType.find_by(name: 'internal').id
+      EasyMoneyRateType.find_by(name: self.budget_quotas_money_rate_type).id
     end
 
     def current_budget_value
