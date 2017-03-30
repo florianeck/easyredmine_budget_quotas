@@ -3,11 +3,9 @@ module EasyredmineBudgetQuotas
 
     extend ActiveSupport::Concern
     included do
-      before_save :check_if_budget_quota_valid, if: :applies_on_budget_or_quota?, :project_uses_budget_quota?
-      before_save :verify_valid_from_to, if: :is_budget_quota?
-    end
-
-    def check_if_budget_quota_valid
+      before_save :check_if_budget_quota_valid, if: [:applies_on_budget_or_quota?, :project_uses_budget_quota?]
+      before_save :verify_valid_from_to, if: [:is_budget_quota?, :project_uses_budget_quota?]
+      after_create :set_ebq_budget_quota_id, if: :is_budget_quota?
     end
 
     def valid_from
@@ -59,6 +57,7 @@ module EasyredmineBudgetQuotas
             self.errors.add(:ebq_budget_quota_value, "Limit of #{can_be_spent} for #{budget_quota_source} will be exceeded (#{already_spent+will_be_spent}) - cant add entry")
             return false
           else
+            # TODO: 'current_bq' needs also to have have its own id referenced in CF ebq_budget_quota_id
             assign_custom_field_value_for_ebq_budget_quota!(id: current_bq.id, value: will_be_spent*-1)
           end
         else
@@ -71,6 +70,7 @@ module EasyredmineBudgetQuotas
       end
 
     end
+
 
     def assign_custom_field_value_for_ebq_budget_quota!(id: , value: )
       cf_id     = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_id' }
@@ -100,6 +100,13 @@ module EasyredmineBudgetQuotas
       self.errors.add(:valid_to, 'required') if ebq_custom_field_value('ebq_valid_to').nil?
 
       return self.errors.empty?
+    end
+
+    def set_self_ebq_budget_quota_id
+      return unless :is_budget_quota?
+      cf_id     = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_id' }
+      self.custom_field_values = {cf_id.id => self.id}
+      self.save
     end
 
     def project_uses_budget_quota?
