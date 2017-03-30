@@ -6,6 +6,9 @@ module EasyredmineBudgetQuotas
       before_save :check_if_budget_quota_valid, if: [:applies_on_budget_or_quota?, :project_uses_budget_quota?]
       before_save :verify_valid_from_to, if: [:is_budget_quota?, :project_uses_budget_quota?]
       after_create :set_self_ebq_budget_quota_id, if: :is_budget_quota?
+      after_create :create_next_time_entry, if: proc { binding.pry; remaining_values_for_assignment.present?}
+
+      attr_accessor :remaining_values_for_assignment
     end
 
     def valid_from
@@ -34,16 +37,21 @@ module EasyredmineBudgetQuotas
       # check if choosen source is available
       if budget_quota_source.to_s.match(/budget|quota/)
 
-        current_bq = self.project.get_current_budget_quota_entry(type: budget_quota_source.to_sym, ref_date: self.spent_on)
+        current_bqs = self.project.get_current_budget_quota_entries(type: budget_quota_source.to_sym, ref_date: self.spent_on)
 
-        if current_bq.nil?
+        if current_bqs.empty?
           self.errors.add(:ebq_budget_quota_source, "No #{budget_quota_source} is defined/available for this project at #{self.spent_on}")
           return false
-        elsif current_bq.try(:easy_locked?)
-          self.errors.add(:ebq_budget_quota_source, "Found entry for #{budget_quota_source} - but entry is already locked!")
-          return false
         else
-          already_spent = self.project.query_spent_entries_on(type: budget_quota_source, ref_date: self.spent_on).map(&:price).sum
+
+          # how much will this item cost?
+          will_be_spent = EasyMoneyTimeEntryExpense.compute_expense(self, project.calculation_rate_id)
+
+          # check if first BudgetQuota covers expense
+          already_spent_on_entries = current_bqs.map {|bq| self.project.query_spent_entries_on(bq).map(&:price).sum }
+          can_be_spent_on_entries  = current_bqs.map {|bq| bq.try(:budget_quota_value).to_f }
+
+          already_spent = already_spent_on_entries.sum
 
           if self.persisted?
             # need to substract existing time entry
@@ -51,15 +59,37 @@ module EasyredmineBudgetQuotas
             already_spent -= r.price if r
           end
 
-          will_be_spent = EasyMoneyTimeEntryExpense.compute_expense(self, project.calculation_rate_id)
-          can_be_spent  = current_bq.try(:budget_quota_value).to_f
-
-          # using tolerance/EUR set in the project here
-          if (can_be_spent + project.budget_quotas_tolerance_amount) < already_spent+will_be_spent
-            self.errors.add(:ebq_budget_quota_value, "Limit of #{can_be_spent} for #{budget_quota_source} will be exceeded (#{already_spent+will_be_spent}) - cant add entry")
+          # check if enough budget is available in all budgets/quotes to book the current timeentry
+          if (can_be_spent_on_entries.sum + project.budget_quotas_tolerance_amount) < already_spent+will_be_spent
+            self.errors.add(:ebq_budget_quota_value, "Limit of #{can_be_spent_on_entries.sum} for #{budget_quota_source} will be exceeded (#{already_spent+will_be_spent}) - cant add entry")
             return false
+          elsif (can_be_spent_on_entries.first + project.budget_quotas_tolerance_amount) < already_spent_on_entries.first+will_be_spent
+            # current time entry cant be assigned on the first value
+            # - calculate the value that actually can be assigned
+            assignable_value = will_be_spent.to_f - ((already_spent_on_entries.first+will_be_spent).to_f - can_be_spent_on_entries.first)
+            value_per_hour   = will_be_spent/self.hours
+
+            assignable_hours = assignable_value/value_per_hour
+
+            binding.pry
+
+            # get current indx from comment
+            comment_id = self.comments.match(/(?<=\[)[0-9]{1,}/)
+            if comment_id.nil?
+              self.comments = "[1] #{self.comments}"
+            else
+              self.comments = "[#{comment_id.to_i+1}] #{self.comments.gsub(/\[[0-9]{1,}\]\ /, '')}"
+            end
+
+
+            # store values for next time entry and close current BudgetQuota
+            @remaining_values_for_assignment = self.attributes.merge(hours: self.hours - assignable_hours)
+            current_bqs.first.update_column(:budget_quota_exceeded, true)
+
+            # Assign currently applicable value
+            assign_custom_field_value_for_ebq_budget_quota!(id: current_bqs.first.id, value: assignable_hours*value_per_hour*-1)
           else
-            assign_custom_field_value_for_ebq_budget_quota!(id: current_bq.id, value: will_be_spent*-1)
+            assign_custom_field_value_for_ebq_budget_quota!(id: current_bqs.first.id, value: will_be_spent*-1)
           end
         end
       else
@@ -67,6 +97,10 @@ module EasyredmineBudgetQuotas
         return false
       end
 
+    end
+
+    def create_next_time_entry
+      self.class.create(  remaining_values_for_assignment)
     end
 
 
