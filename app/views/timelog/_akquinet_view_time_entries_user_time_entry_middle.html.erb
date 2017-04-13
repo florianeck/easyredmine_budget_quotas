@@ -3,8 +3,6 @@ TimeEntryActivity.where(:project_id => nil).each do |tma|
   akquinet_tmas[tma.id] = {'hide_hours' => tma.akquinet_hide_hours?}
   end %>
 
-
-
 <script type="text/javascript">
 /*
 old setter for cf in akquinet_tmas
@@ -30,15 +28,7 @@ old setter for cf in akquinet_tmas
     $('#time_entry_hours').parent().toggle(!curr.hide_hours);
     $('#time_entry_easy_time_entry_range_from').parent().toggle(!curr.hide_hours);
 
-/*
-    // old hide of custom fields -> now in standard of easyredmine
-    $("input[id^='time_entry_custom_field_values_'], input[class*='time_entry_custom_field_values']").attr('disabled', true);
-    $("*[id^='time_entry_custom_field_values_']").closest("p").hide();
-    $.each(curr.cf, function(i, cf){
-      $("input#time_entry_custom_field_values_" + cf +", input.time_entry_custom_field_values_" + cf).attr('disabled', false);
-      $("*[id^='time_entry_custom_field_values_"+ cf +"']").closest("p").show();
-    })
-*/
+
   };
 
   $(document).ready(function() {

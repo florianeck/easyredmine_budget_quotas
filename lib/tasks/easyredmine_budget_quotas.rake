@@ -10,6 +10,9 @@ namespace :easyredmine_budget_quotas do
     ## quota
     quota = TimeEntryActivity.find_or_create_by(name: 'Quota', internal_name: 'ebq_quota', ebq_data_type: 'quota', allow_time_entry_zero_hours: true)
 
+    # make shure hours get hidden
+    [budget, quota].each {|e| e.update_column(:akquinet_hide_hours, true)}
+
     # Time Entry Custom fields
     entries = []
     entries << TimeEntryCustomField.find_or_create_by(name: 'Valid From', internal_name: 'ebq_valid_from', field_format: 'date')
