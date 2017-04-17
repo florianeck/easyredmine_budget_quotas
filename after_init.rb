@@ -2,7 +2,6 @@ Dir[File.dirname(__FILE__) + '/lib/easyredmine_budget_quotas/easy_patch/*/*/*.rb
 
 ActionDispatch::Reloader.to_prepare do
 
-  require_dependency 'easyredmine_budget_quotas/internals'
   require_dependency 'easyredmine_budget_quotas/hooks'
 
 end
