@@ -4,10 +4,6 @@ module EasyredmineBudgetQuotas
     render_on :view_custom_fields_form_time_entry_custom_field, :partial => 'custom_fields/akquinet_view_custom_fields_form_time_entry_custom_field'
     render_on :view_time_entries_user_time_entry_middle, :partial => 'timelog/akquinet_view_time_entries_user_time_entry_middle'
 
-    def view_layouts_base_html_head(context={})
-      stylesheet_link_tag 'modification_akquinet', :plugin => 'modification_akquinet'
-    end
-
     def view_enumerations_form_bottom(context={})
       enumeration = context[:enumeration]
 
