@@ -5,7 +5,7 @@ module EasyredmineBudgetQuotas
     included do
       before_save :check_if_budget_quota_valid, if: [:applies_on_budget_or_quota?, :project_uses_budget_quota?]
       before_save :verify_valid_from_to, if: [:is_budget_quota?, :project_uses_budget_quota?]
-      after_create :set_self_ebq_budget_quota_id, if: :is_budget_quota?
+      after_create :set_self_ebq_budget_quota_id
       after_create :create_next_time_entry, if: proc { remaining_values_for_assignment.present? }
 
       attr_accessor :remaining_values_for_assignment
@@ -82,7 +82,7 @@ module EasyredmineBudgetQuotas
 
             # store values for next time entry and close current BudgetQuota
             @remaining_values_for_assignment = self.attributes.merge('hours' => self.hours - assignable_hours)
-            current_bqs.first.update_column(:budget_quota_exceeded, true)
+            #current_bqs.first.update_column(:budget_quota_exceeded, true)
 
             # Assign currently applicable value
             self.hours = assignable_hours
@@ -124,7 +124,6 @@ module EasyredmineBudgetQuotas
       applies_on_quota? || applies_on_budget?
     end
 
-
     def ebq_custom_field_value(v)
       self.custom_field_values.select {|f| f.custom_field.internal_name == v }.first.try(:value)
     end
@@ -138,15 +137,12 @@ module EasyredmineBudgetQuotas
 
     def set_self_ebq_budget_quota_id
       return unless :is_budget_quota?
-      cf_id     = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_id' }
+      cf_id = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_id' }
       self.custom_field_values = {cf_id.id => self.id}
-      self.save
     end
 
     def project_uses_budget_quota?
       self.project.module_enabled?(:budget_quotas)
     end
-
-
   end
 end
