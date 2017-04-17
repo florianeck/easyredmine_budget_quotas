@@ -1,7 +1,9 @@
 class AddTimeEntryHideHours < ActiveRecord::Migration
   def up
 
-    add_column :enumerations, :akquinet_hide_hours, :boolean, {:null => false, :default => false}
+    unless column_exists? :enumerations, :akquinet_hide_hours
+      add_column :enumerations, :akquinet_hide_hours, :boolean, {:null => false, :default => false}
+    end
 
   end
 
