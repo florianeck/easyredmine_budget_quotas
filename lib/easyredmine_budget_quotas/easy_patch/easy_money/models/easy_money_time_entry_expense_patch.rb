@@ -36,4 +36,4 @@ module EasyredmineBudgetQuotas
   end
 
 end
-EasyExtensions::PatchManager.register_model_patch 'EasyMoneyTimeEntryExpense', 'ModificationAkquinet::EasyMoneyTimeEntryExpensePatch'
+EasyExtensions::PatchManager.register_model_patch 'EasyMoneyTimeEntryExpense', 'EasyredmineBudgetQuotas::EasyMoneyTimeEntryExpensePatch'
