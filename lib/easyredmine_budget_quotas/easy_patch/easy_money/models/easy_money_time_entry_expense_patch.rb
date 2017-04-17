@@ -1,4 +1,4 @@
-module ModificationAkquinet
+module EasyredmineBudgetQuotas
   module EasyMoneyTimeEntryExpensePatch
 
     def self.included(base)
