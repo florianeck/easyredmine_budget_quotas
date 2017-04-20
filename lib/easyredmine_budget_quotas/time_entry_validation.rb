@@ -48,12 +48,13 @@ module EasyredmineBudgetQuotas
       # check if choosen source is available
       if budget_quota_source.to_s.match(/budget|quota/)
 
-	# TODO: asurechnen was mit der aktuellen Activity 0.01 std. kosts
-	# wenn = 0 abbrechen
-	# wenn > 0 diesen Betrag als Differenzbetrag in die Berechnung der möglichenn Budgets / Quotas
-	# übergeben
 
-        current_bqs = self.project.get_current_budget_quota_entries(type: budget_quota_source.to_sym, ref_date: self.spent_on)
+        # TODO: asurechnen was mit der aktuellen Activity 0.01 std. kosts
+        # wenn = 0 abbrechen
+        # wenn > 0 diesen Betrag als Differenzbetrag in die Berechnung der möglichenn Budgets / Quotas
+        # übergeben
+
+        current_bqs = self.project.get_current_budget_quota_entries(type: budget_quota_source.to_sym, ref_date: self.spent_on, required_min_budget_value: required_min_budget_value)
 
         if current_bqs.empty?
           self.errors.add(:ebq_budget_quota_source, "No #{budget_quota_source} is defined/available for this project at #{self.spent_on}")
@@ -80,11 +81,11 @@ module EasyredmineBudgetQuotas
             self.errors.add(:ebq_budget_quota_value, "Limit of #{can_be_spent_on_entries.sum} for #{budget_quota_source} will be exceeded (#{already_spent+will_be_spent}) - cant add entry")
             return false
           elsif (can_be_spent_on_entries.first + project.budget_quotas_tolerance_amount) < already_spent_on_entries.first+will_be_spent
-	    # TODO: wenn ein Eintrag nicht über hours geteilt werden kann weil es z.B. eine
-	    # Reisekostenpauschale ist, dann muss er entweder vom nächsten Budgeteintrag aufgefangen werden
-	    # oder komplett abgelhnt werden, da er halt nicht Teilbar ist
-	    # das bekommst du darüber raus, dass die hours = 0 and will_be_spent > 0
-	    # musst du nach dem Stunden teilen checkn ob will_be_spent jetzt wirklich passt
+            # TODO: wenn ein Eintrag nicht über hours geteilt werden kann weil es z.B. eine
+            # Reisekostenpauschale ist, dann muss er entweder vom nächsten Budgeteintrag aufgefangen werden
+            # oder komplett abgelhnt werden, da er halt nicht Teilbar ist
+            # das bekommst du darüber raus, dass die hours = 0 and will_be_spent > 0
+            # musst du nach dem Stunden teilen checkn ob will_be_spent jetzt wirklich passt
 
             # current time entry cant be assigned on the first value
             # - calculate the value that actually can be assigned
@@ -96,9 +97,9 @@ module EasyredmineBudgetQuotas
 
             # store values for next time entry and close current BudgetQuota
             @remaining_values_for_assignment = self.attributes.merge('hours' => self.hours - assignable_hours)
-	    ## TODO: check, da jetzt im Comemnt oimmer der Comment ohne Index drin steht
-	    # und man damit einfach nur noch den IUndex anfügen Muss
-	    # TODO: als lokale Variable und diese hochzählen
+            ## TODO: check, da jetzt im Comemnt oimmer der Comment ohne Index drin steht
+            # und man damit einfach nur noch den IUndex anfügen Muss
+            # TODO: als lokale Variable und diese hochzählen
             # get current index from comment
             comment_id = self.comments.match(/(?<=\[)[0-9]{1,}/).to_id rescue nil
             if comment_id.nil?
@@ -108,7 +109,7 @@ module EasyredmineBudgetQuotas
             end
 
             # TODO: hier muss in einer Liste vermekrt werden welche Budgets / Quotas im aktuellen
-	    # durchlafu schon probiert worden und diese düfen dann nicht mehr angesprochen werden
+            # durchlafu schon probiert worden und diese düfen dann nicht mehr angesprochen werden
             current_bqs.first.update_column(:budget_quota_exceeded, true)
 
             # Assign currently applicable value
@@ -127,8 +128,17 @@ module EasyredmineBudgetQuotas
       end
     end
 
+    def required_min_budget_value
+      if @_required_min_budget_value.nil?
+        fake_entry = self.dup
+        fake_entry.hours = 0.01
+        @_required_min_budget_value = EasyMoneyTimeEntryExpense.compute_expense(fake_entry, project.calculation_rate_id)
+      end
+      return @_required_min_budget_value
+    end
+
     def create_next_time_entry
-      return unless @remaining_values_for_assignment.present? 
+      return unless @remaining_values_for_assignment.present?
 
       next_entry = self.class.new(@remaining_values_for_assignment.except('id','user_id', 'tyear', 'tmonth', 'tweek'))
       # next line because of: WARNING: Can't mass-assign protected attributes for TimeEntry: user_id
@@ -168,12 +178,12 @@ module EasyredmineBudgetQuotas
     end
 
     def set_self_ebq_budget_quota_id
-	if not is_budget_quota? then
-	    return
-	else
-	    cf_id = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_id' }
-	    self.custom_field_values = {cf_id.id => self.id}
-	end
+      unless is_budget_quota?
+        return
+      else
+        cf_id = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_id' }
+        self.custom_field_values = {cf_id.id => self.id}
+      end
     end
 
     def project_uses_budget_quota?
