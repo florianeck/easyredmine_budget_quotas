@@ -24,10 +24,7 @@ module EasyredmineBudgetQuotas
         entries = TimeEntry.where(project_id: self.id, activity_id: EasyredmineBudgetQuotas.send("#{type}_entry_activities").ids, entity_type: 'Project', easy_locked: true)
           .where.not(budget_quota_exceeded: true)
         @_currently_valied_entries = entries.select do |e|
-          already_spent = self.query_spent_entries_on(e).sum(&:price)
-          total_value = e.budget_quota_value.to_f
-
-          (e.valid_to && e.valid_to >= ref_date) && (e.valid_from && e.valid_from <= ref_date) && (total_value-already_spent) > required_min_budget_value
+          (e.valid_to && e.valid_to >= ref_date) && (e.valid_from && e.valid_from <= ref_date) && e.remaining_value > required_min_budget_value
         end.sort_by do |e|
           e.valid_from
         end

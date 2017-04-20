@@ -31,6 +31,34 @@ module EasyredmineBudgetQuotas
       (EasyredmineBudgetQuotas.budget_entry_activities.ids + EasyredmineBudgetQuotas.quota_entry_activities.ids).include?(self.activity_id.to_i)
     end
 
+    def required_min_budget_value
+      if @_required_min_budget_value.nil?
+        fake_entry = self.dup
+        fake_entry.hours = 0.01
+        @_required_min_budget_value = EasyMoneyTimeEntryExpense.compute_expense(fake_entry, project.calculation_rate_id)
+      end
+      return @_required_min_budget_value
+    end
+
+    # checking for an not-hour-based time entry
+    # (those must not be splitted)
+    def non_hour_based?
+      self.hours.zero? && !will_be_spent.zero?
+    end
+
+    # how much will this item cost?
+    def will_be_spent
+      @_will_be_spent ||= EasyMoneyTimeEntryExpense.compute_expense(self, project.calculation_rate_id)
+    end
+
+    def remaining_value
+      if is_budget_quota?
+        self.budget_quota_value.to_f - self.project.query_spent_entries_on(self).sum(&:price)
+      else
+        0
+      end
+    end
+
     private
 
     #TODO: def CleanUp
@@ -49,11 +77,7 @@ module EasyredmineBudgetQuotas
       if budget_quota_source.to_s.match(/budget|quota/)
 
 
-        # TODO: asurechnen was mit der aktuellen Activity 0.01 std. kosts
-        # wenn = 0 abbrechen
-        # wenn > 0 diesen Betrag als Differenzbetrag in die Berechnung der möglichenn Budgets / Quotas
-        # übergeben
-
+        # Checking available Budgets/Quotas and make shure, the remaining value is big enough to assign at least 0.01 hours on it
         current_bqs = self.project.get_current_budget_quota_entries(type: budget_quota_source.to_sym, ref_date: self.spent_on, required_min_budget_value: required_min_budget_value)
 
         if current_bqs.empty?
@@ -61,8 +85,6 @@ module EasyredmineBudgetQuotas
           return false
         else
 
-          # how much will this item cost?
-          will_be_spent = EasyMoneyTimeEntryExpense.compute_expense(self, project.calculation_rate_id)
 
           # check if first BudgetQuota covers expense
           already_spent_on_entries = current_bqs.map {|bq| self.project.query_spent_entries_on(bq).map(&:price).sum }
@@ -80,6 +102,15 @@ module EasyredmineBudgetQuotas
           if (can_be_spent_on_entries.sum + project.budget_quotas_tolerance_amount) < already_spent+will_be_spent
             self.errors.add(:ebq_budget_quota_value, "Limit of #{can_be_spent_on_entries.sum} for #{budget_quota_source} will be exceeded (#{already_spent+will_be_spent}) - cant add entry")
             return false
+          # for non-hour-based time entries these
+          elsif non_hour_based?
+            matching_bq = current_bqs.detect {|bq| bq.remaining_value >= will_be_spent }
+            if matching_bq.present?
+              assign_custom_field_value_for_ebq_budget_quota!(id: matching_bq.id, value: -1*will_be_spent)
+            else
+              self.errors.add(:ebq_budget_quota_value, "No matching Budget/Quota found to assign non-splittable value of #{will_be_spent}")
+              return false
+            end
           elsif (can_be_spent_on_entries.first + project.budget_quotas_tolerance_amount) < already_spent_on_entries.first+will_be_spent
             # TODO: wenn ein Eintrag nicht über hours geteilt werden kann weil es z.B. eine
             # Reisekostenpauschale ist, dann muss er entweder vom nächsten Budgeteintrag aufgefangen werden
@@ -128,14 +159,7 @@ module EasyredmineBudgetQuotas
       end
     end
 
-    def required_min_budget_value
-      if @_required_min_budget_value.nil?
-        fake_entry = self.dup
-        fake_entry.hours = 0.01
-        @_required_min_budget_value = EasyMoneyTimeEntryExpense.compute_expense(fake_entry, project.calculation_rate_id)
-      end
-      return @_required_min_budget_value
-    end
+
 
     def create_next_time_entry
       return unless @remaining_values_for_assignment.present?
