@@ -141,7 +141,7 @@ module EasyredmineBudgetQuotas
 
             # TODO: hier muss in einer Liste vermekrt werden welche Budgets / Quotas im aktuellen
             # durchlafu schon probiert worden und diese düfen dann nicht mehr angesprochen werden
-            current_bqs.first.update_column(:budget_quota_exceeded, true)
+
 
             # Assign currently applicable value
             self.hours = assignable_hours
