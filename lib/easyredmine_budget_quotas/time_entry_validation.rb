@@ -8,7 +8,7 @@ module EasyredmineBudgetQuotas
       after_create :set_self_ebq_budget_quota_id
       after_save :create_next_time_entry
 
-      attr_accessor :remaining_values_for_assignment
+      attr_accessor :remaining_values_for_assignment, :original_comment, :splitting_index
     end
 
     def valid_from
@@ -33,8 +33,7 @@ module EasyredmineBudgetQuotas
 
     def required_min_budget_value
       if @_required_min_budget_value.nil?
-        fake_entry = self.dup
-        fake_entry.hours = 0.01
+        fake_entry = self.class.new(activity_id: self.activity_id, hours: 0.01, project_id: self.project_id)
         @_required_min_budget_value = EasyMoneyTimeEntryExpense.compute_expense(fake_entry, project.calculation_rate_id)
       end
       return @_required_min_budget_value
@@ -48,7 +47,7 @@ module EasyredmineBudgetQuotas
 
     # how much will this item cost?
     def will_be_spent
-      @_will_be_spent ||= EasyMoneyTimeEntryExpense.compute_expense(self, project.calculation_rate_id)
+      EasyMoneyTimeEntryExpense.compute_expense(self, project.calculation_rate_id)
     end
 
     def remaining_value
@@ -112,32 +111,20 @@ module EasyredmineBudgetQuotas
               return false
             end
           elsif (can_be_spent_on_entries.first + project.budget_quotas_tolerance_amount) < already_spent_on_entries.first+will_be_spent
-            # TODO: wenn ein Eintrag nicht über hours geteilt werden kann weil es z.B. eine
-            # Reisekostenpauschale ist, dann muss er entweder vom nächsten Budgeteintrag aufgefangen werden
-            # oder komplett abgelhnt werden, da er halt nicht Teilbar ist
-            # das bekommst du darüber raus, dass die hours = 0 and will_be_spent > 0
-            # musst du nach dem Stunden teilen checkn ob will_be_spent jetzt wirklich passt
 
-            # current time entry cant be assigned on the first value
-            # - calculate the value that actually can be assigned
+            # Checking the actual amount of assigable hours
             assignable_value = will_be_spent.to_f - ((already_spent_on_entries.first+will_be_spent).to_f - can_be_spent_on_entries.first)
             value_per_hour   = will_be_spent/self.hours
 
             assignable_hours = assignable_value/value_per_hour
 
 
-            # store values for next time entry and close current BudgetQuota
-            @remaining_values_for_assignment = self.attributes.merge('hours' => self.hours - assignable_hours)
-            ## TODO: check, da jetzt im Comemnt oimmer der Comment ohne Index drin steht
-            # und man damit einfach nur noch den IUndex anfügen Muss
-            # TODO: als lokale Variable und diese hochzählen
-            # get current index from comment
-            comment_id = self.comments.match(/(?<=\[)[0-9]{1,}/).to_id rescue nil
-            if comment_id.nil?
-              self.comments = "[1] #{self.comments}"
-            else
-              self.comments = "[#{comment_id.to_i+1}] #{self.comments.gsub(/\[[0-9]{1,}\]\ /, '')}"
-            end
+            # store values for next time entry
+            @remaining_values_for_assignment = self.attributes.merge('hours' => self.hours - assignable_hours,
+              'original_comment' => self.original_comment, 'splitting_index' => self.splitting_index.to_i+1
+            )
+
+            self.comments = "[#{@remaining_values_for_assignment['splitting_index']}] #{@remaining_values_for_assignment['original_comment']}"
 
             # TODO: hier muss in einer Liste vermekrt werden welche Budgets / Quotas im aktuellen
             # durchlafu schon probiert worden und diese düfen dann nicht mehr angesprochen werden
@@ -146,11 +133,7 @@ module EasyredmineBudgetQuotas
             # Assign currently applicable value
             self.hours = assignable_hours
 
-            #assign_custom_field_value_for_ebq_budget_quota!(id: current_bqs.first.id, value: (assignable_hours*value_per_hour*-1).round(2))
-            # recal will_be_spent on new hours
-            will_be_spent = EasyMoneyTimeEntryExpense.compute_expense(self, project.calculation_rate_id)
           end
-
           assign_custom_field_value_for_ebq_budget_quota!(id: current_bqs.first.id, value: (-1*will_be_spent).round(2))
         end
       else
