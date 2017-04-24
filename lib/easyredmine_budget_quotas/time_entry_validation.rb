@@ -8,7 +8,7 @@ module EasyredmineBudgetQuotas
       after_create :set_self_ebq_budget_quota_id
       after_save :create_next_time_entry
 
-      attr_accessor :remaining_values_for_assignment, :original_comment, :splitting_index
+      attr_accessor :remaining_values_for_assignment, :original_comment, :splitting_index, :already_checked_budget_ids
     end
 
     def valid_from
@@ -121,7 +121,7 @@ module EasyredmineBudgetQuotas
 
             # store values for next time entry
             @remaining_values_for_assignment = self.attributes.merge('hours' => self.hours - assignable_hours,
-              'original_comment' => self.original_comment, 'splitting_index' => self.splitting_index.to_i+1
+              'original_comment' => (self.splitting_index.to_i < 1 ? self.comments : self.original_comment), 'splitting_index' => self.splitting_index.to_i+1
             )
 
             self.comments = "[#{@remaining_values_for_assignment['splitting_index']}] #{@remaining_values_for_assignment['original_comment']}"
@@ -133,7 +133,10 @@ module EasyredmineBudgetQuotas
             # Assign currently applicable value
             self.hours = assignable_hours
 
+          elsif self.splitting_index && self.splitting_index > 0 # last section if multi-entries
+            self.comments = "[#{self.splitting_index+1}] #{self.original_comment}"
           end
+
           assign_custom_field_value_for_ebq_budget_quota!(id: current_bqs.first.id, value: (-1*will_be_spent).round(2))
         end
       else
@@ -148,6 +151,7 @@ module EasyredmineBudgetQuotas
       return unless @remaining_values_for_assignment.present?
 
       next_entry = self.class.new(@remaining_values_for_assignment.except('id','user_id', 'tyear', 'tmonth', 'tweek'))
+
       # next line because of: WARNING: Can't mass-assign protected attributes for TimeEntry: user_id
       next_entry.user_id = self.user_id
       cf_source = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_source' }
