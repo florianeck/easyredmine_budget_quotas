@@ -75,11 +75,9 @@ module EasyredmineBudgetQuotas
       # check if choosen source is available
       if budget_quota_source.to_s.match(/budget|quota/)
 
-
         # Checking available Budgets/Quotas and make shure, the remaining value is big enough to assign at least 0.01 hours on it
-        current_bqs = self.project.get_current_budget_quota_entries(type: budget_quota_source.to_sym,
-          ref_date: self.spent_on, required_min_budget_value: required_min_budget_value, already_checked: self.already_checked_budget_ids
-        )
+        # or, if
+        current_bqs = self.project.get_current_budget_quota_entries(type: budget_quota_source.to_sym,  ref_date: self.spent_on, required_min_budget_value: required_min_budget_value, already_checked: self.already_checked_budget_ids)
 
         if current_bqs.empty?
           self.errors.add(:ebq_budget_quota_source, "No #{budget_quota_source} is defined/available for this project at #{self.spent_on}")
@@ -106,8 +104,10 @@ module EasyredmineBudgetQuotas
           # for non-hour-based time entries these
           elsif non_hour_based?
             matching_bq = current_bqs.detect {|bq| bq.remaining_value >= will_be_spent }
+
             if matching_bq.present?
               assign_custom_field_value_for_ebq_budget_quota!(id: matching_bq.id, value: -1*will_be_spent)
+              return # => important! stop here, otherwise, value gets assigned to wrong BQ
             else
               self.errors.add(:ebq_budget_quota_value, "No matching Budget/Quota found to assign non-splittable value of #{will_be_spent}")
               return false
