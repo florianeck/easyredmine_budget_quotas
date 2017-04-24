@@ -7,6 +7,7 @@ module EasyredmineBudgetQuotas
       before_save :verify_valid_from_to, if: [:is_budget_quota?, :project_uses_budget_quota?]
       after_create :set_self_ebq_budget_quota_id
       after_save :create_next_time_entry
+      before_save :set_exceeded_flag
 
       attr_accessor :remaining_values_for_assignment, :original_comment, :splitting_index, :already_checked_budget_ids
     end
@@ -58,7 +59,40 @@ module EasyredmineBudgetQuotas
       end
     end
 
+    def time_entries_in_budget_quota_group
+      @_time_entries_in_budget_quota_group ||= if budget_quota_id
+        TimeEntry.where(id: CustomValue.find_by_sql("SELECT customized_id from custom_values where customized_type ='TimeEntry' and custom_field_id = '#{budget_quota_field_id}' and value = #{budget_quota_id}").map(&:customized_id))
+      else
+        []
+      end
+    end
+
+    def budget_quota_field_id
+      @_bq_id ||= self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_id' }.try(:id)
+    end
+
+    def budget_quota_id
+      self.custom_field_value(budget_quota_field_id.to_i)
+    end
+
+    def group_time_entries_all_locked?
+      if time_entries_in_budget_quota_group.any?
+        time_entries_in_budget_quota_group.where(easy_locked: false).where.not(id: self.id).empty?
+      else
+        return false
+      end
+    end
+
     private
+
+
+    def set_exceeded_flag
+      if self.easy_locked? && group_time_entries_all_locked?
+        TimeEntry.find_by(id: budget_quota_id).try(:update_columns, budget_quota_exceeded: true)
+      elsif budget_quota_id
+        TimeEntry.find_by(id: budget_quota_id).try(:update_columns, budget_quota_exceeded: false)
+      end
+    end
 
     #TODO: def CleanUp
     # ein Budget/ Quota was zu 100% voll ist,
@@ -69,6 +103,8 @@ module EasyredmineBudgetQuotas
     # wenn ein Budget / Quota Eintrag geunlocked wird, muss das exeeded Flag gelöscht werden
 
     def check_if_budget_quota_valid
+
+      return if self.easy_locked?
 
       @remaining_values_for_assignment=nil
 
@@ -91,10 +127,12 @@ module EasyredmineBudgetQuotas
 
           already_spent = already_spent_on_entries.sum
 
+          already_spent_on_self = 0
+
           if self.persisted?
             # need to substract existing time entry
-            r = EasyMoneyTimeEntryExpense.easy_money_time_entries_by_time_entry_and_rate_type(self, EasyMoneyRateType.find_by(name: project.budget_quotas_money_rate_type)).first
-            already_spent -= r.price if r
+            already_spent_on_self = EasyMoneyTimeEntryExpense.easy_money_time_entries_by_time_entry_and_rate_type(self, EasyMoneyRateType.find_by(name: project.budget_quotas_money_rate_type)).first.try(:price).to_f
+            already_spent -= already_spent_on_self
           end
 
           # check if enough budget is available in all budgets/quotes to book the current timeentry
@@ -103,11 +141,11 @@ module EasyredmineBudgetQuotas
             return false
           # for non-hour-based time entries these
           elsif non_hour_based?
-            matching_bq = current_bqs.detect {|bq| bq.remaining_value >= will_be_spent }
+            matching_bq = current_bqs.detect {|bq| (bq.remaining_value + already_spent_on_self) >= will_be_spent }
 
             if matching_bq.present?
               assign_custom_field_value_for_ebq_budget_quota!(id: matching_bq.id, value: -1*will_be_spent)
-              return # => important! stop here, otherwise, value gets assigned to wrong BQ
+              return true # => important! stop here, otherwise, value gets assigned to wrong BQ
             else
               self.errors.add(:ebq_budget_quota_value, "No matching Budget/Quota found to assign non-splittable value of #{will_be_spent}")
               return false
