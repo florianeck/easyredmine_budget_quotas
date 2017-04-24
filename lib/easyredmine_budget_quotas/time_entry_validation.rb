@@ -77,7 +77,9 @@ module EasyredmineBudgetQuotas
 
 
         # Checking available Budgets/Quotas and make shure, the remaining value is big enough to assign at least 0.01 hours on it
-        current_bqs = self.project.get_current_budget_quota_entries(type: budget_quota_source.to_sym, ref_date: self.spent_on, required_min_budget_value: required_min_budget_value)
+        current_bqs = self.project.get_current_budget_quota_entries(type: budget_quota_source.to_sym,
+          ref_date: self.spent_on, required_min_budget_value: required_min_budget_value, already_checked: self.already_checked_budget_ids
+        )
 
         if current_bqs.empty?
           self.errors.add(:ebq_budget_quota_source, "No #{budget_quota_source} is defined/available for this project at #{self.spent_on}")
@@ -118,17 +120,13 @@ module EasyredmineBudgetQuotas
 
             assignable_hours = assignable_value/value_per_hour
 
-
             # store values for next time entry
             @remaining_values_for_assignment = self.attributes.merge('hours' => self.hours - assignable_hours,
-              'original_comment' => (self.splitting_index.to_i < 1 ? self.comments : self.original_comment), 'splitting_index' => self.splitting_index.to_i+1
+              'original_comment' => (self.splitting_index.to_i < 1 ? "#{self.comments} (#{self.hours}h)" : self.original_comment), 'splitting_index' => self.splitting_index.to_i+1,
+              'already_checked_budget_ids' => ((self.already_checked_budget_ids.presence || []) + [current_bqs.first])
             )
 
             self.comments = "[#{@remaining_values_for_assignment['splitting_index']}] #{@remaining_values_for_assignment['original_comment']}"
-
-            # TODO: hier muss in einer Liste vermekrt werden welche Budgets / Quotas im aktuellen
-            # durchlafu schon probiert worden und diese düfen dann nicht mehr angesprochen werden
-
 
             # Assign currently applicable value
             self.hours = assignable_hours
@@ -194,6 +192,7 @@ module EasyredmineBudgetQuotas
       else
         cf_id = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_id' }
         self.custom_field_values = {cf_id.id => self.id}
+        self.save
       end
     end
 
