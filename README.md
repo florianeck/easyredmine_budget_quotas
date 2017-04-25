@@ -1,9 +1,12 @@
 # BudgetQuotas for EasyRedmine
 
+
+## Install
+- run `rake redmine:plugins:migrate`
+- run `rake easyredmine_budget_quotas:install`
+
 ## TODO
 - When enabling BudgetQuotas for Project, MOney should be enabled as well
-
-
 
 
 

@@ -1,2 +1,7 @@
 de:
   project_module_budget_quotas: Budgets & Kontingente
+  label_setting_akquinet_hide_hours: verstecke Stunden
+  label_setting_akquinet_visible_activities_on_time_entry: sichtbar für
+
+  field_akquinet_extra_money_multiplied: Kosten Faktor
+  field_akquinet_extra_money_offset: Kosten Addition
