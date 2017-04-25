@@ -88,12 +88,10 @@ module EasyredmineBudgetQuotas
     def set_exceeded_flag
       current_bq = TimeEntry.find_by(id: budget_quota_id)
 
-      if current_bq && current_bq.remaining_value <= project.budget_quotas_tolerance_amount
-        if self.easy_locked? && group_time_entries_all_locked?
-          TimeEntry.find_by(id: budget_quota_id).try(:update_columns, budget_quota_exceeded: true)
-        elsif budget_quota_id
-          TimeEntry.find_by(id: budget_quota_id).try(:update_columns, budget_quota_exceeded: false)
-        end
+      if current_bq && current_bq.remaining_value <= project.budget_quotas_tolerance_amount && self.easy_locked? && group_time_entries_all_locked?
+        TimeEntry.find_by(id: budget_quota_id).try(:update_columns, budget_quota_exceeded: true)
+      else
+        TimeEntry.find_by(id: budget_quota_id).try(:update_columns, budget_quota_exceeded: false)
       end
     end
 
