@@ -76,7 +76,7 @@ module EasyredmineBudgetQuotas
     end
 
     def group_time_entries_all_locked?
-      if time_entries_in_budget_quota_group.any?
+      if time_entries_in_budget_quota_group.size > 1
         time_entries_in_budget_quota_group.where(easy_locked: false).where.not(id: self.id).empty?
       else
         return false
@@ -85,22 +85,17 @@ module EasyredmineBudgetQuotas
 
     private
 
-
     def set_exceeded_flag
-      if self.easy_locked? && group_time_entries_all_locked?
-        TimeEntry.find_by(id: budget_quota_id).try(:update_columns, budget_quota_exceeded: true)
-      elsif budget_quota_id
-        TimeEntry.find_by(id: budget_quota_id).try(:update_columns, budget_quota_exceeded: false)
+      current_bq = TimeEntry.find_by(id: budget_quota_id)
+
+      if current_bq && current_bq.remaining_value <= project.budget_quotas_tolerance_amount
+        if self.easy_locked? && group_time_entries_all_locked?
+          TimeEntry.find_by(id: budget_quota_id).try(:update_columns, budget_quota_exceeded: true)
+        elsif budget_quota_id
+          TimeEntry.find_by(id: budget_quota_id).try(:update_columns, budget_quota_exceeded: false)
+        end
       end
     end
-
-    #TODO: def CleanUp
-    # ein Budget/ Quota was zu 100% voll ist,
-    # der Maximalbetrag wird um unseren Toleranzbereich unter / überschritte
-    # und alle Einträge sind geloggt -> exceeded setzten
-
-    #TODO: unexeeded
-    # wenn ein Budget / Quota Eintrag geunlocked wird, muss das exeeded Flag gelöscht werden
 
     def check_if_budget_quota_valid
 
