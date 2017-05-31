@@ -9,6 +9,11 @@
       <%= f.label :budget_quotas_tolerance_amount %>
       <%= f.text_field :budget_quotas_tolerance_amount %>
     </p>
+
+    <!-- Setting for billable for different rate types -->
+    <!-- When rate type is set to only_for_billable_time_entries = false -->
+    <!-- Time Entry will have an expense of 0 for given rate type -->
+
   </div>
   <div class="form-actions">
     <%= submit_tag l(:button_save), :class => 'button-positive' %>

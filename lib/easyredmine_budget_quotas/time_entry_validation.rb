@@ -38,6 +38,7 @@ module EasyredmineBudgetQuotas
       else
         if @_required_min_budget_value.nil?
           fake_entry = self.class.new(activity_id: self.activity_id, hours: 0.01, project_id: self.project_id)
+          fake_entry.user_id = self.user_id
           @_required_min_budget_value = EasyMoneyTimeEntryExpense.compute_expense(fake_entry, project.calculation_rate_id)
         end
         return @_required_min_budget_value
