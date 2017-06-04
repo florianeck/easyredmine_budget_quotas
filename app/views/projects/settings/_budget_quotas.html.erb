@@ -10,6 +10,15 @@
       <%= f.text_field :budget_quotas_tolerance_amount %>
     </p>
 
+    <h3>Kalkulation nur von abrechenbaren Time Entries</h3>
+    <%= f.fields_for :ebq_rate_type_settings do |s| %>
+      <% EasyMoneyRateType.active.each do |r| %>
+        <p>
+          <%= s.check_box r.id, checked: @project.ebq_rate_type_settings[r.id.to_s] == '1' %> <%= s.label r.id, r.name %>
+        </p>
+      <% end %>
+    <% end %>
+
     <!-- Setting for billable for different rate types -->
     <!-- When rate type is set to only_for_billable_time_entries = false -->
     <!-- Time Entry will have an expense of 0 for given rate type -->

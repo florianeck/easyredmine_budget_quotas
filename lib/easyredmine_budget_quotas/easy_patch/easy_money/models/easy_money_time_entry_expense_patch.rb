@@ -23,12 +23,19 @@ module EasyredmineBudgetQuotas
     module ClassMethods
 
       def compute_expense_with_modification_akquinet(time_entry, rate_type)
-        multiplied = time_entry.custom_field_values.select{|cfv| !cfv.value.blank? && cfv.custom_field.akquinet_extra_money_multiplied?}.
-          collect{|cf| cf.value.to_f}.sum
-        offset = time_entry.custom_field_values.select{|cfv| !cfv.value.blank? && cfv.custom_field.akquinet_extra_money_offset?}.
-          collect{|cf| cf.value.to_f}.sum
+        # if time entry is easy billable or
+        # setting for 'only billable time entries' for given rate is set to false
+        if time_entry.easy_is_billable? || time_entry.project.ebq_rate_type_settings[rate_type.to_s] == '0'
+          multiplied = time_entry.custom_field_values.select{|cfv| !cfv.value.blank? && cfv.custom_field.akquinet_extra_money_multiplied?}.
+            collect{|cf| cf.value.to_f}.sum
+          offset = time_entry.custom_field_values.select{|cfv| !cfv.value.blank? && cfv.custom_field.akquinet_extra_money_offset?}.
+            collect{|cf| cf.value.to_f}.sum
 
-        ((time_entry.hours.to_f + multiplied) * EasyMoneyRate.get_unit_rate_for_time_entry(time_entry, rate_type)) + offset
+          ((time_entry.hours.to_f + multiplied) * EasyMoneyRate.get_unit_rate_for_time_entry(time_entry, rate_type)) + offset
+        else
+           # setting for 'only billable time entries' for given rate is set to true and item is not billable
+          0
+        end
       end
 
     end

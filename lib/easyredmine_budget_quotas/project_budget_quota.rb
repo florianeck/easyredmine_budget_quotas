@@ -3,6 +3,21 @@ module EasyredmineBudgetQuotas
 
     extend ActiveSupport::Concern
 
+
+    def ebq_rate_type_settings=(val)
+      if val.is_a?(Hash)
+        self[:ebq_rate_type_settings] = YAML::dump(val)
+      end
+    end
+
+    def ebq_rate_type_settings
+      if self[:ebq_rate_type_settings].present?
+        YAML::load(self[:ebq_rate_type_settings])
+      else
+        {}
+      end
+    end
+
     def query_spent_entries_on(current_entry)
       query = ["SELECT `time_entries`.*, `custom_values`.*, `custom_fields`.*, `easy_money_time_entries_expenses`.`price` as price FROM `time_entries`"]
       query << "INNER JOIN `custom_values` ON `custom_values`.`customized_id` = `time_entries`.`id` AND `custom_values`.`customized_type` = 'TimeEntry'"
