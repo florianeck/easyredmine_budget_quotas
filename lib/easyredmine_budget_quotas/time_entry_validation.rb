@@ -130,8 +130,6 @@ module EasyredmineBudgetQuotas
           self.errors.add(:ebq_budget_quota_source, "No #{budget_quota_source} is defined/available for this project at #{self.spent_on}")
           return false
         else
-
-
           # check if first BudgetQuota covers expense
           already_spent_on_entries = current_bqs.map {|bq| self.project.query_spent_entries_on(bq).map(&:price).sum }
           can_be_spent_on_entries  = current_bqs.map {|bq| bq.try(:budget_quota_value).to_f }
@@ -161,7 +159,7 @@ module EasyredmineBudgetQuotas
               self.errors.add(:ebq_budget_quota_value, "No matching Budget/Quota found to assign non-splittable value of #{will_be_spent}")
               return false
             end
-          elsif (can_be_spent_on_entries.first + project.budget_quotas_tolerance_amount) < already_spent_on_entries.first+will_be_spent
+          elsif (can_be_spent_on_entries.first + project.budget_quotas_tolerance_amount) < already_spent_on_entries.first+(will_be_spent-already_spent_on_self)
 
             # Checking the actual amount of assigable hours
             assignable_value = will_be_spent.to_f - ((already_spent_on_entries.first+will_be_spent).to_f - can_be_spent_on_entries.first)
