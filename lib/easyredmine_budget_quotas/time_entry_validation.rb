@@ -80,6 +80,10 @@ module EasyredmineBudgetQuotas
       self.custom_field_value(budget_quota_field_id.to_i)
     end
 
+    def current_budget_quota_entry
+      @_current_budget_quota_entry ||= TimeEntry.find(budget_quota_id)
+    end
+
     def group_time_entries_all_locked?
       if time_entries_in_budget_quota_group.size > 1
         time_entries_in_budget_quota_group.where(easy_locked: false).where.not(id: self.id).empty?
@@ -111,7 +115,16 @@ module EasyredmineBudgetQuotas
 
         # Checking available Budgets/Quotas and make shure, the remaining value is big enough to assign at least 0.01 hours on it
         # or, if
-        current_bqs = self.project.get_current_budget_quota_entries(type: budget_quota_source.to_sym,  ref_date: self.spent_on, required_min_budget_value: required_min_budget_value, already_checked: self.already_checked_budget_ids)
+        current_bqs = self.project.get_current_budget_quota_entries(
+          type: budget_quota_source.to_sym,
+          ref_date: self.spent_on,
+          required_min_budget_value: required_min_budget_value,
+          already_checked: self.already_checked_budget_ids
+        )
+
+        if self.persisted? && current_bqs.empty?
+          current_bqs << current_budget_quota_entry
+        end
 
         if current_bqs.empty?
           self.errors.add(:ebq_budget_quota_source, "No #{budget_quota_source} is defined/available for this project at #{self.spent_on}")
