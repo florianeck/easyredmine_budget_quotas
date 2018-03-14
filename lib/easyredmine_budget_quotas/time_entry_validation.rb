@@ -81,7 +81,7 @@ module EasyredmineBudgetQuotas
     end
 
     def current_budget_quota_entry
-      @_current_budget_quota_entry ||= TimeEntry.find(budget_quota_id)
+      @_current_budget_quota_entry ||= TimeEntry.find_by(id: budget_quota_id)
     end
 
     def group_time_entries_all_locked?
@@ -125,7 +125,9 @@ module EasyredmineBudgetQuotas
         if self.persisted? && current_bqs.empty?
           current_bqs << current_budget_quota_entry
         end
-
+        
+        current_bqs = current_bqs.compact
+        
         if current_bqs.empty?
           self.errors.add(:ebq_budget_quota_source, "No #{budget_quota_source} is defined/available for this project at #{self.spent_on}")
           return false
