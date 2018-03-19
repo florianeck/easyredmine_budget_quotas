@@ -42,7 +42,7 @@ module EasyredmineBudgetQuotas
           entries = entries.where.not(id: already_checked)
         end
         @_currently_valied_entries = entries.select do |e|
-          (e.valid_to && e.valid_to >= ref_date) && (e.valid_from && e.valid_from <= ref_date) && e.remaining_value > required_min_budget_value
+          (e.valid_to && e.valid_to >= ref_date) && (e.valid_from && e.valid_from <= ref_date) && (e.remaining_value + self.budget_quotas_tolerance_amount) > required_min_budget_value
         end.sort_by do |e|
           e.valid_from
         end
