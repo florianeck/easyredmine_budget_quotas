@@ -29,16 +29,14 @@ namespace :easyredmine_budget_quotas do
       e.save
     end
 
-    TimeEntryCustomField.find_or_create_by(name: 'Source of Budget/Quota', internal_name: 'ebq_budget_quota_id', field_format: 'int', visible: false)
-
+    # make sure all values are always set as required
+    source_of = TimeEntryCustomField.find_or_create_by(name: 'Source of Budget/Quota', internal_name: 'ebq_budget_quota_id', field_format: 'int')
+    source_of.update_attributes(visible: true, editable: true)
+    
     apply_on = TimeEntryCustomField.find_or_create_by(name: 'Apply on Budget/Quota',
-      internal_name: 'ebq_budget_quota_source', field_format: 'value_tree', possible_values: ['budget', 'quota']
+      internal_name: 'ebq_budget_quota_source', field_format: 'value_tree'
     )
-    
-    apply_on.update_attributes(visible: false)
-    
-    
-    
+    apply_on.update_attributes(visible: false, editable: false, possible_values: ['budget', 'quota'])
 
   end
 
