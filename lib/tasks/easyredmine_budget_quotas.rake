@@ -20,7 +20,7 @@ namespace :easyredmine_budget_quotas do
     entries << TimeEntryCustomField.find_or_create_by(name: 'Value of Budget/Quota', internal_name: 'ebq_budget_quota_value', field_format: 'float')
 
     entries.each do |e|
-      e.activity_ids = e.activity_ids + [budget.id, quota.id]
+      e.activity_ids = (e.activity_ids + [budget.id, quota.id]).uniq
       e.visible = false
       e.save
     end
@@ -30,6 +30,12 @@ namespace :easyredmine_budget_quotas do
     TimeEntryCustomField.find_or_create_by(name: 'Apply on Budget/Quota',
       internal_name: 'ebq_budget_quota_source', field_format: 'value_tree', possible_values: ['budget', 'quota']
     )
+    
+    TimeEntryCustomField.find_or_create_by(name: 'Budget Quoate Tolerance Amount',
+      internal_name: 'ebq_budget_quota_tolerance', field_format: 'float'
+    )
+    
+    
 
   end
 
