@@ -239,8 +239,15 @@ module EasyredmineBudgetQuotas
     def verify_valid_from_to
       self.errors.add(:valid_from, 'required') if ebq_custom_field_value('ebq_valid_from').nil?
       self.errors.add(:valid_to, 'required') if ebq_custom_field_value('ebq_valid_to').nil?
+      if self.errors.empty? 
+        if self.comments.blank?
+          self.comments = "#{budget_quota_source} / #{self.budget_quota_value} (#{ebq_custom_field_value('ebq_valid_from')} - #{ebq_custom_field_value('ebq_valid_to')}"
+        end  
 
-      return self.errors.empty?
+        return true
+      else
+        return false
+      end  
     end
 
     def set_self_ebq_budget_quota_id

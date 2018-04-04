@@ -34,21 +34,7 @@ module EasyredmineBudgetQuotas
       EasyMoneyRateType.find_by(name: self.budget_quotas_money_rate_type).id
     end
 
-    def get_current_budget_quota_entries(type:, ref_date: Time.now.to_date, required_min_budget_value: 1, already_checked: nil)
-      if @_currently_valied_entries.nil?
-        entries = TimeEntry.where(project_id: self.id, activity_id: EasyredmineBudgetQuotas.send("#{type}_entry_activities").ids, entity_type: 'Project', easy_locked: true)
-          .where.not(budget_quota_exceeded: true)
-        if already_checked.present?
-          entries = entries.where.not(id: already_checked)
-        end
-        @_currently_valied_entries = entries.select do |e|
-          (e.valid_to && e.valid_to >= ref_date) && (e.valid_from && e.valid_from <= ref_date) && (e.remaining_value + self.budget_quotas_tolerance_amount) > required_min_budget_value
-        end.sort_by do |e|
-          e.valid_from
-        end
-      end
-      return @_currently_valied_entries
-    end
+    
 
   end
 end
