@@ -18,7 +18,11 @@ namespace :easyredmine_budget_quotas do
     entries << TimeEntryCustomField.find_or_create_by(name: 'Valid From', internal_name: 'ebq_valid_from', field_format: 'date')
     entries << TimeEntryCustomField.find_or_create_by(name: 'Valid To', internal_name: 'ebq_valid_to', field_format: 'date')
     entries << TimeEntryCustomField.find_or_create_by(name: 'Value of Budget/Quota', internal_name: 'ebq_budget_quota_value', field_format: 'float')
-
+    
+    entries << TimeEntryCustomField.find_or_create_by(name: 'Budget Quoate Tolerance Amount',
+      internal_name: 'ebq_budget_quota_tolerance', field_format: 'float'
+    )
+    
     entries.each do |e|
       e.activity_ids = (e.activity_ids + [budget.id, quota.id]).uniq
       e.visible = false
@@ -27,13 +31,12 @@ namespace :easyredmine_budget_quotas do
 
     TimeEntryCustomField.find_or_create_by(name: 'Source of Budget/Quota', internal_name: 'ebq_budget_quota_id', field_format: 'int', visible: false)
 
-    TimeEntryCustomField.find_or_create_by(name: 'Apply on Budget/Quota',
+    apply_on = TimeEntryCustomField.find_or_create_by(name: 'Apply on Budget/Quota',
       internal_name: 'ebq_budget_quota_source', field_format: 'value_tree', possible_values: ['budget', 'quota']
     )
     
-    TimeEntryCustomField.find_or_create_by(name: 'Budget Quoate Tolerance Amount',
-      internal_name: 'ebq_budget_quota_tolerance', field_format: 'float'
-    )
+    apply_on.update_attributes(visible: false)
+    
     
     
 
