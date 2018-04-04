@@ -23,6 +23,15 @@ namespace :easyredmine_budget_quotas do
       internal_name: 'ebq_budget_quota_tolerance', field_format: 'float'
     )
     
+    custom_field_for_activity = TimeEntryCustomField.find_or_initialize_by(name: 'Budget Quote applicable for',
+      internal_name: 'ebq_budget_quota_app_activity', field_format: 'easy_lookup', multiple: true
+    )
+    
+    custom_field_for_activity.settings = {"entity_type":"TimeEntryActivity","entity_attribute":"name"}
+    custom_field_for_activity.save
+    
+    entries << custom_field_for_activity
+    
     entries.each do |e|
       e.activity_ids = (e.activity_ids + [budget.id, quota.id]).uniq
       e.visible = false
@@ -37,7 +46,9 @@ namespace :easyredmine_budget_quotas do
       internal_name: 'ebq_budget_quota_source', field_format: 'value_tree'
     )
     apply_on.update_attributes(visible: false, editable: false, possible_values: ['budget', 'quota'])
-
+    
+    
+    
   end
 
 end
