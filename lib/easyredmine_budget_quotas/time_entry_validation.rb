@@ -73,11 +73,19 @@ module EasyredmineBudgetQuotas
     end
 
     def budget_quota_field_id
-      @_bq_id ||= self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_id' }.try(:id)
+      @_bq_quota_field_id ||= self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_id' }.try(:id)
+    end
+    
+    def budget_quotas_tolerance_amount_id
+      @_bq_tolerance_amount_id ||= self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_tolerance' }.try(:id)
     end
 
     def budget_quota_id
-      self.custom_field_value(budget_quota_field_id.to_i)
+      @_budget_quota_id ||= self.custom_field_value(budget_quota_field_id.to_i)
+    end
+    
+    def budget_quotas_tolerance_amount
+      @_budget_quotas_tolerance_amount ||= self.custom_field_value(budget_quotas_tolerance_amount_id.to_i).to_i
     end
 
     def current_budget_quota_entry
@@ -97,7 +105,7 @@ module EasyredmineBudgetQuotas
     def set_exceeded_flag
       current_bq = TimeEntry.find_by(id: budget_quota_id)
 
-      if current_bq && current_bq.remaining_value <= project.budget_quotas_tolerance_amount && self.easy_locked? && group_time_entries_all_locked?
+      if current_bq && current_bq.remaining_value <= current_bq.budget_quotas_tolerance_amount && self.easy_locked? && group_time_entries_all_locked?
         TimeEntry.find_by(id: budget_quota_id).try(:update_columns, budget_quota_exceeded: true)
       else
         TimeEntry.find_by(id: budget_quota_id).try(:update_columns, budget_quota_exceeded: false)
