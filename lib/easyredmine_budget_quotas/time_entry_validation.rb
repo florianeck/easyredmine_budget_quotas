@@ -68,6 +68,10 @@ module EasyredmineBudgetQuotas
         0
       end
     end
+    
+    def remaining_value_with_tolerance
+      self.remaining_value + self.budget_quotas_tolerance_amount.to_f
+    end
 
     def time_entries_in_budget_quota_group
       @_time_entries_in_budget_quota_group ||= if budget_quota_id
@@ -151,8 +155,6 @@ module EasyredmineBudgetQuotas
 
       return if self.easy_locked? || self.current_bq.nil?
 
-      @remaining_values_for_assignment=nil
-
       # check if choosen source is available
       if budget_quota_source.to_s.match(/budget|quota/)
         
@@ -160,9 +162,9 @@ module EasyredmineBudgetQuotas
           self.errors.add(:ebq_budget_quota_source, "No #{budget_quota_source} is defined/available for this project at #{self.spent_on}")
           return false
         else
-          # check if first BudgetQuota covers expense
+          # check if  BudgetQuota covers expense
           already_spent_on_entries = current_bqs.map {|bq| self.project.query_spent_entries_on(bq).map(&:price).sum }
-          can_be_spent_on_entries  = current_bqs.map {|bq| bq.try(:budget_quota_value).to_f }
+          can_be_spent_on_entries  = current_bqs.map {|bq| bq.try(:budget_quota_value).to_f + bq.budget_quotas_tolerance_amount }
 
           already_spent = already_spent_on_entries.sum
 

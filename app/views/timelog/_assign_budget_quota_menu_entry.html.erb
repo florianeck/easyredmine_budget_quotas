@@ -3,8 +3,8 @@
 <ul>
   <% assignable_to.each do |bq| %>
     <% checked = used_bq_ids.include?(bq.id.to_s) %>
-    <% if bq.remaining_value <= 0 %>
-      <li><%=  "#{bq.comments} - #{bq.project.name} (#{l(:label_ebq_budget_quota_exceeded)})" %></li>
+    <% if bq.remaining_value_with_tolerance <= 0 %>
+      <li><%=  "#{bq.comments}<br/>- #{bq.project.name} (#{l(:label_ebq_budget_quota_exceeded)})".html_safe %></li>
     <% else %>
       <li><%= link_to "#{bq.comments} - #{bq.project.name}", assign_budget_quota_to_time_entries_path(time_entry_ids: time_entry_ids, budget_quota_id: bq.id), method: :post, class: ("icon icon-checked" if checked) %></li>  
     <% end %>  

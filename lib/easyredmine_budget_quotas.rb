@@ -27,11 +27,19 @@ module EasyredmineBudgetQuotas
       activity_ids_for_selected_entries = selected_time_entries.pluck(:activity_id).uniq
       
       bq_time_entries.select do |e|
+        ids_allowed = (e.send :ebq_custom_field_value, 'ebq_budget_quota_app_activity').map(&:to_i)
+        puts e.id
+        puts ids_allowed.inspect
+        puts (e.valid_from && e.valid_from <= ref_min)
+        puts (e.valid_to && e.valid_to >= ref_max) 
+        puts ((e.remaining_value + e.budget_quotas_tolerance_amount) > options[:required_min_budget_value])
+        puts ((activity_ids_for_selected_entries - ids_allowed).empty? || ids_allowed.empty?)
+        
         
         (e.valid_from && e.valid_from <= ref_min) && 
         (e.valid_to && e.valid_to >= ref_max) && 
-        ((e.remaining_value + e.budget_quotas_tolerance_amount) > options[:required_min_budget_value]) &&
-        (activity_ids_for_selected_entries - (e.send :ebq_custom_field_value, 'ebq_budget_quota_app_activity').map(&:to_i)).empty?
+        ((e.remaining_value_with_tolerance) > options[:required_min_budget_value]) &&
+        ((activity_ids_for_selected_entries - ids_allowed).empty? || ids_allowed.empty?)
       end.sort_by do |e|
         e.valid_from
       end
