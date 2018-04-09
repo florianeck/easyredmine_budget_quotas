@@ -35,17 +35,18 @@ namespace :easyredmine_budget_quotas do
     entries.each do |e|
       e.activity_ids = (e.activity_ids + [budget.id, quota.id]).uniq
       e.visible = false
+      e.is_primary = false
       e.save
     end
 
     # make sure all values are always set as required
     source_of = TimeEntryCustomField.find_or_create_by(name: 'Source of Budget/Quota', internal_name: 'ebq_budget_quota_id', field_format: 'int')
-    source_of.update_attributes(visible: true, editable: true)
+    source_of.update_attributes(visible: false, editable: false, is_primary: false, non_editable: true)
     
     apply_on = TimeEntryCustomField.find_or_create_by(name: 'Apply on Budget/Quota',
       internal_name: 'ebq_budget_quota_source', field_format: 'value_tree'
     )
-    apply_on.update_attributes(visible: false, editable: false, possible_values: ['budget', 'quota'])
+    apply_on.update_attributes(visible: false, editable: false, is_primary: false, non_editable: true, possible_values: ['budget', 'quota'])
     
     
     
