@@ -24,7 +24,7 @@ module EasyredmineBudgetQuotas
         assignable_to = EasyredmineBudgetQuotas.get_available_budget_quotas_for_time_entry_ids(context[:time_entries].map(&:id))
         
         if assignable_to.any?
-          output << content_tag(:li, context[:hook_caller].render("timelog/assign_budget_quota_menu_entry", assignable_to: assignable_to, time_entry_ids: context[:time_entries].map(&:id)), class: "folder")
+          output << content_tag(:li, context[:hook_caller].render("timelog/assign_budget_quota_menu_entry", assignable_to: assignable_to, time_entries: context[:time_entries], time_entry_ids: context[:time_entries].map(&:id)), class: "folder")
         end    
       end  
       

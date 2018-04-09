@@ -141,7 +141,7 @@ module EasyredmineBudgetQuotas
 
     def check_if_budget_quota_valid
 
-      return if self.easy_locked?
+      return if self.easy_locked? || self.current_bq.nil?
 
       @remaining_values_for_assignment=nil
 
@@ -188,21 +188,14 @@ module EasyredmineBudgetQuotas
             value_per_hour   = will_be_spent/self.hours
 
             assignable_hours = assignable_value/value_per_hour
-
-            # store values for next time entry
-            @remaining_values_for_assignment = self.attributes.merge('hours' => self.hours - assignable_hours,
-              'original_comment' => (self.splitting_index.to_i < 1 ? "#{self.comments} (#{self.hours}h)" : self.original_comment), 'splitting_index' => self.splitting_index.to_i+1,
-              'already_checked_budget_ids' => ((self.already_checked_budget_ids.presence || []) + [current_bqs.first])
-            )
-
-            self.comments = "[#{@remaining_values_for_assignment['splitting_index']}] #{@remaining_values_for_assignment['original_comment']}"
+            
+            # Split non-assignable hours value and store in other time entry
+            create_next_time_entry(self.attributes.merge('hours' => self.hours - assignable_hours, 'comments' => "#{self.comments} (splitted #{self.hours - assignable_hours}h)"))
 
             # Assign currently applicable value
             self.hours = assignable_hours
 
-          elsif self.splitting_index && self.splitting_index > 0 # last section if multi-entries
-            self.comments = "[#{self.splitting_index+1}] #{self.original_comment}"
-          end
+t          end
 
           assign_custom_field_value_for_ebq_budget_quota!(id: current_bqs.first.id, value: (-1*will_be_spent).round(2))
         end
@@ -213,14 +206,11 @@ module EasyredmineBudgetQuotas
     end
 
 
-
-    def create_next_time_entry
-      next_entry = self.class.new(@remaining_values_for_assignment.except('id','user_id', 'tyear', 'tmonth', 'tweek'))
+    def create_next_time_entry(values = {})
+      next_entry = self.class.new(values.except('id','user_id', 'tyear', 'tmonth', 'tweek'))
 
       # next line because of: WARNING: Can't mass-assign protected attributes for TimeEntry: user_id
       next_entry.user_id = self.user_id
-      cf_source = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_source' }
-      next_entry.custom_field_values = {cf_source.id => self.budget_quota_source}
       next_entry.save
     end
 
