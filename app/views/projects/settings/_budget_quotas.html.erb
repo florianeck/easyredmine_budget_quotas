@@ -5,11 +5,6 @@
       <%= f.select :budget_quotas_money_rate_type, EasyMoneyRateType.active.map(&:name) %>
     </p>
 
-    <p>
-      <%= f.label :budget_quotas_tolerance_amount %>
-      <%= f.text_field :budget_quotas_tolerance_amount %>
-    </p>
-
     <h3>Kalkulation nur von abrechenbaren Time Entries</h3>
     <%= f.fields_for :ebq_rate_type_settings do |s| %>
       <% EasyMoneyRateType.active.each do |r| %>

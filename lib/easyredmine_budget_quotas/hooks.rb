@@ -11,6 +11,25 @@ module EasyredmineBudgetQuotas
         context[:controller].send(:render_to_string, :partial => 'enumerations/akquinet_view_enumerations_form_bottom', :locals => context)
       end
     end
+    
+    def view_time_entries_context_menu_end(context = {})
+      
+      has_only_assignable_entries = context[:time_entries].detect do |e| 
+        !e.project_uses_budget_quota? || e.is_budget_quota?
+      end.nil?
+
+      output = []
+      
+      if has_only_assignable_entries
+        assignable_to = EasyredmineBudgetQuotas.get_available_budget_quotas_for_time_entry_ids(context[:time_entries].map(&:id))
+        
+        if assignable_to.any?
+          output << content_tag(:li, context[:hook_caller].render("timelog/assign_budget_quota_menu_entry", assignable_to: assignable_to, time_entries: context[:time_entries], time_entry_ids: context[:time_entries].map(&:id)), class: "folder")
+        end    
+      end  
+      
+      return output.join
+    end
 
 
     def helper_project_settings_tabs(context={})

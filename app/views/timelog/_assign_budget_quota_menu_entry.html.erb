@@ -1,0 +1,13 @@
+<a><%= l(:button_ebq_assign_budget_quota) %></a>
+<% used_bq_ids = time_entries.map(&:budget_quota_id) %>
+<ul>
+  <% assignable_to.each do |bq| %>
+    <% checked = used_bq_ids.include?(bq.id.to_s) %>
+    <% if bq.remaining_value <= 0 %>
+      <li><%=  "#{bq.comments} - #{bq.project.name} (#{l(:label_ebq_budget_quota_exceeded)})" %></li>
+    <% else %>
+      <li><%= link_to "#{bq.comments} - #{bq.project.name}", assign_budget_quota_to_time_entries_path(time_entry_ids: time_entry_ids, budget_quota_id: bq.id), method: :post, class: ("icon icon-checked" if checked) %></li>  
+    <% end %>  
+  <% end %>
+  <li><%= link_to l(:button_ebq_unassign_budget_quota), unassign_budget_quota_time_entries_path(time_entry_ids: time_entry_ids), method: :post, class: "icon icon-close" %></li>
+</ul>

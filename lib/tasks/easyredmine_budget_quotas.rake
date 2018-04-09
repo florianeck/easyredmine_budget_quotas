@@ -18,19 +18,37 @@ namespace :easyredmine_budget_quotas do
     entries << TimeEntryCustomField.find_or_create_by(name: 'Valid From', internal_name: 'ebq_valid_from', field_format: 'date')
     entries << TimeEntryCustomField.find_or_create_by(name: 'Valid To', internal_name: 'ebq_valid_to', field_format: 'date')
     entries << TimeEntryCustomField.find_or_create_by(name: 'Value of Budget/Quota', internal_name: 'ebq_budget_quota_value', field_format: 'float')
-
+    
+    entries << TimeEntryCustomField.find_or_create_by(name: 'Budget Quoate Tolerance Amount',
+      internal_name: 'ebq_budget_quota_tolerance', field_format: 'float'
+    )
+    
+    custom_field_for_activity = TimeEntryCustomField.find_or_initialize_by(name: 'Budget Quote applicable for',
+      internal_name: 'ebq_budget_quota_app_activity', field_format: 'easy_lookup', multiple: true
+    )
+    
+    custom_field_for_activity.settings = {"entity_type":"TimeEntryActivity","entity_attribute":"name"}
+    custom_field_for_activity.save
+    
+    entries << custom_field_for_activity
+    
     entries.each do |e|
-      e.activity_ids = e.activity_ids + [budget.id, quota.id]
+      e.activity_ids = (e.activity_ids + [budget.id, quota.id]).uniq
       e.visible = false
       e.save
     end
 
-    TimeEntryCustomField.find_or_create_by(name: 'Source of Budget/Quota', internal_name: 'ebq_budget_quota_id', field_format: 'int', visible: false)
-
-    TimeEntryCustomField.find_or_create_by(name: 'Apply on Budget/Quota',
-      internal_name: 'ebq_budget_quota_source', field_format: 'value_tree', possible_values: ['budget', 'quota']
+    # make sure all values are always set as required
+    source_of = TimeEntryCustomField.find_or_create_by(name: 'Source of Budget/Quota', internal_name: 'ebq_budget_quota_id', field_format: 'int')
+    source_of.update_attributes(visible: true, editable: true)
+    
+    apply_on = TimeEntryCustomField.find_or_create_by(name: 'Apply on Budget/Quota',
+      internal_name: 'ebq_budget_quota_source', field_format: 'value_tree'
     )
-
+    apply_on.update_attributes(visible: false, editable: false, possible_values: ['budget', 'quota'])
+    
+    
+    
   end
 
 end
