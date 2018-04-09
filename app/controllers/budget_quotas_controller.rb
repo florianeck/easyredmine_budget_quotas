@@ -27,5 +27,14 @@ class BudgetQuotasController < ApplicationController
     flash[:error] = error.join("<br >/") if error.any?
     redirect_to :back
   end
+  
+  def unassign_budget_quota_to_time_entries
+    @time_entries = TimeEntry.where(id: params[:time_entry_ids], easy_locked: false)
+    @time_entries.each do |entry|
+      entry.unassign_budget_quota
+    end
+    
+    redirect_to :back
+  end
 
 end

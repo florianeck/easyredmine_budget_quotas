@@ -121,6 +121,14 @@ module EasyredmineBudgetQuotas
       self.save
     end
     
+    def unassign_budget_quota
+      cf_id      = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_id' }
+      cf_source  = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_source' }
+      
+      self.custom_field_values = {cf_id.id => nil, cf_source.id => nil}
+      self.save
+    end
+    
     def current_bq
       TimeEntry.find_by(id: budget_quota_id)
     end
@@ -165,13 +173,9 @@ module EasyredmineBudgetQuotas
             already_spent_on_self = EasyMoneyTimeEntryExpense.easy_money_time_entries_by_time_entry_and_rate_type(self, EasyMoneyRateType.find_by(name: project.budget_quotas_money_rate_type)).first.try(:price).to_f
             already_spent -= already_spent_on_self
           end
-
-          # check if enough budget is available in all budgets/quotes to book the current timeentry
-          if (can_be_spent_on_entries.sum + current_bq.budget_quotas_tolerance_amount) < already_spent+will_be_spent
-            self.errors.add(:ebq_budget_quota_value, "Limit of #{can_be_spent_on_entries.sum} for #{budget_quota_source} will be exceeded (#{already_spent+will_be_spent}) - cant add entry")
-            return false
-          # for non-hour-based time entries these
-          elsif non_hour_based?
+          
+          # non hour based entries cant be splitted
+          if non_hour_based?
             matching_bq = current_bqs.detect {|bq| (bq.remaining_value + already_spent_on_self) >= will_be_spent }
 
             if matching_bq.present?
@@ -181,7 +185,7 @@ module EasyredmineBudgetQuotas
               self.errors.add(:ebq_budget_quota_value, "No matching Budget/Quota found to assign non-splittable value of #{will_be_spent}")
               return false
             end
-          elsif (can_be_spent_on_entries.first + current_bq.budget_quotas_tolerance_amount) < already_spent_on_entries.first+(will_be_spent-already_spent_on_self)
+          else# (can_be_spent_on_entries.first + current_bq.budget_quotas_tolerance_amount) < already_spent_on_entries.first+(will_be_spent-already_spent_on_self)
 
             # Checking the actual amount of assigable hours
             assignable_value = will_be_spent.to_f - ((already_spent_on_entries.first+will_be_spent).to_f - can_be_spent_on_entries.first)
@@ -189,13 +193,14 @@ module EasyredmineBudgetQuotas
 
             assignable_hours = assignable_value/value_per_hour
             
-            # Split non-assignable hours value and store in other time entry
-            create_next_time_entry(self.attributes.merge('hours' => self.hours - assignable_hours, 'comments' => "#{self.comments} (splitted #{self.hours - assignable_hours}h)"))
+            if assignable_hours < self.hours
+              # Split non-assignable hours value and store in other time entry
+              create_next_time_entry(self.attributes.merge('hours' => self.hours - assignable_hours, 'comments' => "#{self.comments} (splitted #{(self.hours - assignable_hours).round(2)}h)"))
 
-            # Assign currently applicable value
-            self.hours = assignable_hours
-
-t          end
+              # Assign currently applicable value
+              self.hours = assignable_hours
+            end  
+          end
 
           assign_custom_field_value_for_ebq_budget_quota!(id: current_bqs.first.id, value: (-1*will_be_spent).round(2))
         end
