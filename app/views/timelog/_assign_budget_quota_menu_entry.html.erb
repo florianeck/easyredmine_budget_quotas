@@ -1,0 +1,6 @@
+<a><%= l(:button_ebq_assign_budget_quota) %></a>
+<ul>
+  <% assignable_to.each do |bq| %>
+    <li><%= link_to "#{bq.comments} - #{bq.project.name}", assign_budget_quota_to_time_entries_path(time_entry_ids: time_entry_ids, budget_quota_id: bq.id), method: :post %></li>  
+  <% end %>
+</ul>

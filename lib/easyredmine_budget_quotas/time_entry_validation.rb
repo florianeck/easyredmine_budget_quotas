@@ -6,10 +6,7 @@ module EasyredmineBudgetQuotas
       before_save :check_if_budget_quota_valid, if: [:applies_on_budget_or_quota?, :project_uses_budget_quota?]
       before_save :verify_valid_from_to, if: [:is_budget_quota?, :project_uses_budget_quota?]
       after_create :set_self_ebq_budget_quota_id
-      after_save :create_next_time_entry
       before_save :set_exceeded_flag
-
-      attr_accessor :remaining_values_for_assignment, :original_comment, :splitting_index, :already_checked_budget_ids
     end
 
     def valid_from
@@ -29,7 +26,15 @@ module EasyredmineBudgetQuotas
     end
 
     def is_budget_quota?
-      (EasyredmineBudgetQuotas.budget_entry_activities.ids + EasyredmineBudgetQuotas.quota_entry_activities.ids).include?(self.activity_id.to_i)
+      is_budget? || is_quota?
+    end
+    
+    def is_budget?
+      EasyredmineBudgetQuotas.send("budget_entry_activities").ids.include?(self.activity_id)
+    end
+    
+    def is_quota?
+      EasyredmineBudgetQuotas.send("quota_entry_activities").ids.include?(self.activity_id)
     end
 
     def required_min_budget_value
@@ -99,12 +104,34 @@ module EasyredmineBudgetQuotas
         return false
       end
     end
+    
+    def project_uses_budget_quota?
+      self.project.module_enabled?(:budget_quotas)
+    end
+    
+    def assign_budget_quota(bq_id)
+      entry = TimeEntry.find(bq_id)
+
+      return false if !entry.is_budget_quota?
+      
+      cf_id      = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_id' }
+      cf_source  = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_source' }
+      
+      self.custom_field_values = {cf_id.id => bq_id, cf_source.id => (entry.is_budget? ? 'budget' : 'quota')}
+      self.save
+    end
+    
+    def current_bq
+      TimeEntry.find_by(id: budget_quota_id)
+    end
+    
+    def current_bqs
+      TimeEntry.where(id: budget_quota_id)
+    end
 
     private
 
     def set_exceeded_flag
-      current_bq = TimeEntry.find_by(id: budget_quota_id)
-
       if current_bq && current_bq.remaining_value <= current_bq.budget_quotas_tolerance_amount && self.easy_locked? && group_time_entries_all_locked?
         TimeEntry.find_by(id: budget_quota_id).try(:update_columns, budget_quota_exceeded: true)
       else
@@ -120,21 +147,6 @@ module EasyredmineBudgetQuotas
 
       # check if choosen source is available
       if budget_quota_source.to_s.match(/budget|quota/)
-
-        # Checking available Budgets/Quotas and make shure, the remaining value is big enough to assign at least 0.01 hours on it
-        # or, if
-        current_bqs = self.project.get_current_budget_quota_entries(
-          type: budget_quota_source.to_sym,
-          ref_date: self.spent_on,
-          required_min_budget_value: required_min_budget_value,
-          already_checked: self.already_checked_budget_ids
-        )
-
-        if self.persisted? && current_bqs.empty?
-          current_bqs << current_budget_quota_entry
-        end
-        
-        current_bqs = current_bqs.compact
         
         if current_bqs.empty?
           self.errors.add(:ebq_budget_quota_source, "No #{budget_quota_source} is defined/available for this project at #{self.spent_on}")
@@ -155,7 +167,7 @@ module EasyredmineBudgetQuotas
           end
 
           # check if enough budget is available in all budgets/quotes to book the current timeentry
-          if (can_be_spent_on_entries.sum + project.budget_quotas_tolerance_amount) < already_spent+will_be_spent
+          if (can_be_spent_on_entries.sum + current_bq.budget_quotas_tolerance_amount) < already_spent+will_be_spent
             self.errors.add(:ebq_budget_quota_value, "Limit of #{can_be_spent_on_entries.sum} for #{budget_quota_source} will be exceeded (#{already_spent+will_be_spent}) - cant add entry")
             return false
           # for non-hour-based time entries these
@@ -169,7 +181,7 @@ module EasyredmineBudgetQuotas
               self.errors.add(:ebq_budget_quota_value, "No matching Budget/Quota found to assign non-splittable value of #{will_be_spent}")
               return false
             end
-          elsif (can_be_spent_on_entries.first + project.budget_quotas_tolerance_amount) < already_spent_on_entries.first+(will_be_spent-already_spent_on_self)
+          elsif (can_be_spent_on_entries.first + current_bq.budget_quotas_tolerance_amount) < already_spent_on_entries.first+(will_be_spent-already_spent_on_self)
 
             # Checking the actual amount of assigable hours
             assignable_value = will_be_spent.to_f - ((already_spent_on_entries.first+will_be_spent).to_f - can_be_spent_on_entries.first)
@@ -203,8 +215,6 @@ module EasyredmineBudgetQuotas
 
 
     def create_next_time_entry
-      return unless @remaining_values_for_assignment.present?
-
       next_entry = self.class.new(@remaining_values_for_assignment.except('id','user_id', 'tyear', 'tmonth', 'tweek'))
 
       # next line because of: WARNING: Can't mass-assign protected attributes for TimeEntry: user_id
@@ -219,7 +229,7 @@ module EasyredmineBudgetQuotas
       cf_value  = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_value' }
       self.custom_field_values = {cf_id.id => id, cf_value.id => value}
     end
-
+    
     def applies_on_quota?
       budget_quota_source == 'quota'
     end
@@ -260,8 +270,6 @@ module EasyredmineBudgetQuotas
       end
     end
 
-    def project_uses_budget_quota?
-      self.project.module_enabled?(:budget_quotas)
-    end
+    
   end
 end

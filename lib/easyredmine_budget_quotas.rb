@@ -14,8 +14,8 @@ module EasyredmineBudgetQuotas
       activity_ids = (budget_entry_activities + quota_entry_activities).map(&:id)
       selected_time_entries = TimeEntry.where(id: time_entry_ids).where.not(activity_id: activity_ids)
       
-      # TODO: Query all parent projects as well
-      project_ids = selected_time_entries.pluck(:project_id).uniq
+      projects = Project.where(id: selected_time_entries.pluck(:project_id).uniq)
+      project_ids = projects.map {|p| p.self_and_ancestors.map(&:id) }.flatten.uniq
       options[:required_min_budget_value] ||= 1
       
       bq_time_entries = TimeEntry.where(project_id: project_ids, activity_id: activity_ids, easy_locked: true).where.not(budget_quota_exceeded: true) 
