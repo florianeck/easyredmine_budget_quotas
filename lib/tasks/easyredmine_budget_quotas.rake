@@ -41,9 +41,12 @@ namespace :easyredmine_budget_quotas do
 
     # make sure all values are always set as required
     source_of = TimeEntryCustomField.find_or_create_by(name: 'Source of Budget/Quota', internal_name: 'ebq_budget_quota_id')
-    source_of.assign_attributes(visible: true, editable: false, is_primary: false, non_editable: true, field_format: 'easy_lookup')
+    source_of.assign_attributes(visible: true, editable: false, is_primary: false, non_editable: true)
+    source_of.field_format = 'easy_lookup'
     source_of.settings = {"entity_type":"TimeEntry","entity_attribute":"comment_link"}
     source_of.save
+    # field-format cant be assigned, to make sure older versions upgrade correctly, 'update_column' is used to force it
+    source_of.update_column(:field_format, 'easy_lookup') unless source_of.field_format == 'easy_lookup'
     
     apply_on = TimeEntryCustomField.find_or_create_by(name: 'Apply on Budget/Quota',
       internal_name: 'ebq_budget_quota_source', field_format: 'value_tree'
