@@ -28,7 +28,7 @@ class BudgetQuotasController < ApplicationController
     redirect_to :back
   end
   
-  def unassign_budget_quota_to_time_entries
+  def unassign_budget_quota_time_entries
     @time_entries = TimeEntry.where(id: params[:time_entry_ids], easy_locked: false)
     @time_entries.each do |entry|
       entry.unassign_budget_quota
