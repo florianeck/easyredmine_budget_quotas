@@ -140,6 +140,10 @@ module EasyredmineBudgetQuotas
     def current_bqs
       TimeEntry.where(id: budget_quota_id)
     end
+    
+    def comment_link
+      "<a href=\"/bulk_time_entries?time_entry_id=#{self.id}\">#{self.comments.presence || self.id}</a>".html_safe
+    end
 
     private
 

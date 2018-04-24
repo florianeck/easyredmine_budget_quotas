@@ -40,8 +40,10 @@ namespace :easyredmine_budget_quotas do
     end
 
     # make sure all values are always set as required
-    source_of = TimeEntryCustomField.find_or_create_by(name: 'Source of Budget/Quota', internal_name: 'ebq_budget_quota_id', field_format: 'int')
-    source_of.update_attributes(visible: false, editable: false, is_primary: false, non_editable: true)
+    source_of = TimeEntryCustomField.find_or_create_by(name: 'Source of Budget/Quota', internal_name: 'ebq_budget_quota_id')
+    source_of.assign_attributes(visible: true, editable: false, is_primary: false, non_editable: true, field_format: 'easy_lookup')
+    source_of.settings = {"entity_type":"TimeEntry","entity_attribute":"comment_link"}
+    source_of.save
     
     apply_on = TimeEntryCustomField.find_or_create_by(name: 'Apply on Budget/Quota',
       internal_name: 'ebq_budget_quota_source', field_format: 'value_tree'
