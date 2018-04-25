@@ -13,3 +13,12 @@ EasyExtensions::EasyLookups::EasyLookup.map do |easy_lookup|
 end
 
 ModalSelectorsController.send :include, EasyPatch::ModelSelectorControllerExtension
+
+
+EasyTimeEntryQuery.class_eval do
+  
+  def searchable_columns
+    ["comments", "projects.name"]
+  end
+  
+end
