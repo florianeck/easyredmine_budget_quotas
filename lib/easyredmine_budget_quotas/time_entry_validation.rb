@@ -7,6 +7,13 @@ module EasyredmineBudgetQuotas
       before_save :verify_valid_from_to, if: [:is_budget_quota?, :project_uses_budget_quota?]
       after_create :set_self_ebq_budget_quota_id
       before_save :set_exceeded_flag
+      
+      
+      def self.additional_select_options
+        {
+          activity_id: EasyredmineBudgetQuotas.send("budget_entry_activities").ids + EasyredmineBudgetQuotas.send("quota_entry_activities").ids
+        }
+      end
     end
 
     def valid_from
@@ -144,7 +151,11 @@ module EasyredmineBudgetQuotas
     def comment_link
       "<a href=\"/bulk_time_entries?time_entry_id=#{self.id}\">#{self.comments.presence || self.id}</a>".html_safe
     end
-
+    
+    def to_s
+      "#{self.comments.presence || self.id} - #{self.project.name}"
+    end
+    
     private
 
     def set_exceeded_flag
