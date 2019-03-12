@@ -3,7 +3,7 @@ de:
   label_setting_akquinet_hide_hours: verstecke Stunden
   label_setting_akquinet_visible_activities_on_time_entry: sichtbar für
   label_ebq_budget_quota_exceeded: "ausgeschöpft"
-
+  
   field_akquinet_extra_money_multiplied: Kosten Faktor
   field_akquinet_extra_money_offset: Kosten Addition
   button_ebq_assign_budget_quota: Budget/Quota zuweisen

@@ -3,7 +3,7 @@ class MoveToleranceAmountToTimeEntry < ActiveRecord::Migration
   def up
     # check if Custom field 'ebq_budget_quota_tolerance' exists
     if TimeEntryCustomField.find_by(internal_name: 'ebq_budget_quota_tolerance', field_format: 'float').nil?
-      raise "TimeEntryCustomField 'ebq_budget_quota_tolerance' is missing. Please run 'rake easyredmine_budget_quotas:install RAILS_ENV=#{Rails.env}'"
+      Rails.logger.error "TimeEntryCustomField 'ebq_budget_quota_tolerance' is missing. Please run 'rake easyredmine_budget_quotas:install RAILS_ENV=#{Rails.env}'"
     end
     
     # 1. Find existing Budget/Quote Time Entries
