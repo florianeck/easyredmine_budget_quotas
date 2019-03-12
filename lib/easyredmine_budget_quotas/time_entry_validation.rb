@@ -5,7 +5,7 @@ module EasyredmineBudgetQuotas
     included do
       before_save :check_if_budget_quota_valid, if: [:applies_on_budget_or_quota?, :project_uses_budget_quota?]
       before_save :verify_valid_from_to, if: [:is_budget_quota?, :project_uses_budget_quota?]
-      after_create :set_self_ebq_budget_quota_id
+      before_save :set_self_ebq_budget_quota_id
       before_save :set_exceeded_flag
     end
 
@@ -28,11 +28,11 @@ module EasyredmineBudgetQuotas
     def is_budget_quota?
       is_budget? || is_quota?
     end
-    
+
     def is_budget?
       EasyredmineBudgetQuotas.send("budget_entry_activities").ids.include?(self.activity_id)
     end
-    
+
     def is_quota?
       EasyredmineBudgetQuotas.send("quota_entry_activities").ids.include?(self.activity_id)
     end
@@ -68,7 +68,7 @@ module EasyredmineBudgetQuotas
         0
       end
     end
-    
+
     def remaining_value_with_tolerance
       self.remaining_value + self.budget_quotas_tolerance_amount.to_f
     end
@@ -84,7 +84,7 @@ module EasyredmineBudgetQuotas
     def budget_quota_field_id
       @_bq_quota_field_id ||= self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_id' }.try(:id)
     end
-    
+
     def budget_quotas_tolerance_amount_id
       @_bq_tolerance_amount_id ||= self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_tolerance' }.try(:id)
     end
@@ -92,7 +92,7 @@ module EasyredmineBudgetQuotas
     def budget_quota_id
       @_budget_quota_id ||= self.custom_field_value(budget_quota_field_id.to_i)
     end
-    
+
     def budget_quotas_tolerance_amount
       @_budget_quotas_tolerance_amount ||= self.custom_field_value(budget_quotas_tolerance_amount_id.to_i).to_i
     end
@@ -108,47 +108,46 @@ module EasyredmineBudgetQuotas
         return false
       end
     end
-    
+
     def project_uses_budget_quota?
       self.project.module_enabled?(:budget_quotas)
     end
-    
+
     def assign_budget_quota(bq_id)
       entry = TimeEntry.find(bq_id)
 
-      return false if !entry.is_budget_quota?
-      
       cf_id      = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_id' }
       cf_source  = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_source' }
-      
+
       self.custom_field_values = {cf_id.id => bq_id, cf_source.id => (entry.is_budget? ? 'budget' : 'quota')}
       self.save
     end
-    
+
     def unassign_budget_quota
       cf_id      = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_id' }
       cf_source  = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_source' }
-      
-      self.custom_field_values = {cf_id.id => nil, cf_source.id => nil}
+      cf_value   = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_value' }
+
+      self.custom_field_values = {cf_id.id => nil, cf_source.id => nil, cf_value.id => 0 }
       self.save
     end
-    
+
     def current_bq
       TimeEntry.find_by(id: budget_quota_id)
     end
-    
+
     def current_bqs
       TimeEntry.where(id: budget_quota_id)
     end
-    
+
     def comment_link
       "<a href=\"/bulk_time_entries?time_entry_id=#{self.id}\">#{self.comments.presence || self.id}</a>".html_safe
     end
-    
+
     def to_s
       "#{self.comments.presence || self.id} - #{self.project.name}"
     end
-    
+
     private
 
     def set_exceeded_flag
@@ -165,7 +164,7 @@ module EasyredmineBudgetQuotas
 
       # check if choosen source is available
       if budget_quota_source.to_s.match(/budget|quota/)
-        
+
         if current_bqs.empty?
           self.errors.add(:ebq_budget_quota_source, "No #{budget_quota_source} is defined/available for this project at #{self.spent_on}")
           return false
@@ -183,7 +182,7 @@ module EasyredmineBudgetQuotas
             already_spent_on_self = EasyMoneyTimeEntryExpense.easy_money_time_entries_by_time_entry_and_rate_type(self, EasyMoneyRateType.find_by(name: project.budget_quotas_money_rate_type)).first.try(:price).to_f
             already_spent -= already_spent_on_self
           end
-          
+
           # non hour based entries cant be splitted
           if non_hour_based?
             matching_bq = current_bqs.detect {|bq| (bq.remaining_value + already_spent_on_self) >= will_be_spent }
@@ -202,14 +201,14 @@ module EasyredmineBudgetQuotas
             value_per_hour   = will_be_spent/self.hours
 
             assignable_hours = assignable_value/value_per_hour
-            
+
             if assignable_hours < self.hours
               # Split non-assignable hours value and store in other time entry
               create_next_time_entry(self.attributes.merge('hours' => self.hours - assignable_hours, 'comments' => "#{self.comments} (splitted #{(self.hours - assignable_hours).round(2)}h)"))
 
               # Assign currently applicable value
               self.hours = assignable_hours
-            end  
+            end
           end
 
           assign_custom_field_value_for_ebq_budget_quota!(id: current_bqs.first.id, value: (-1*will_be_spent).round(2))
@@ -234,7 +233,7 @@ module EasyredmineBudgetQuotas
       cf_value  = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_value' }
       self.custom_field_values = {cf_id.id => id, cf_value.id => value}
     end
-    
+
     def applies_on_quota?
       budget_quota_source == 'quota'
     end
@@ -254,27 +253,28 @@ module EasyredmineBudgetQuotas
     def verify_valid_from_to
       self.errors.add(:valid_from, 'required') if ebq_custom_field_value('ebq_valid_from').nil?
       self.errors.add(:valid_to, 'required') if ebq_custom_field_value('ebq_valid_to').nil?
-      if self.errors.empty? 
+      if self.errors.empty?
         if self.comments.blank?
           self.comments = "#{budget_quota_source} / #{self.budget_quota_value} (#{ebq_custom_field_value('ebq_valid_from')} - #{ebq_custom_field_value('ebq_valid_to')}"
-        end  
+        end
 
         return true
       else
         return false
-      end  
+      end
     end
 
+    # Auto-assign the source of budget-quota to self.id if current entry is a budget/quota source.
+    # this is required to get correct summed up values when grouping by 'source of budget quota'
     def set_self_ebq_budget_quota_id
       unless is_budget_quota?
         return
       else
         cf_id = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_id' }
         self.custom_field_values = {cf_id.id => self.id}
-        self.save
       end
     end
 
-    
+
   end
 end
