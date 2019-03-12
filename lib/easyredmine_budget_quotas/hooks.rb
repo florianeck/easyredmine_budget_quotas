@@ -39,7 +39,7 @@ module EasyredmineBudgetQuotas
         :no_js_link => true
       } if context[:project].module_enabled?(:budget_quotas)
     end
-
+    
 
   end
 end
