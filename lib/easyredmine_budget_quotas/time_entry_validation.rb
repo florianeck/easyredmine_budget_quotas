@@ -270,8 +270,11 @@ module EasyredmineBudgetQuotas
       unless is_budget_quota?
         return
       else
+        # TODO: Refactor assignment of of those values, as it happens mutliple times with redundant code
         cf_id = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_id' }
-        self.custom_field_values = {cf_id.id => self.id}
+        cf_source  = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_source' }
+
+        self.custom_field_values = {cf_id.id => self.id, cf_source.id => (self.is_budget? ? 'budget' : 'quota')}
       end
     end
 
