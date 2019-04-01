@@ -159,8 +159,7 @@ module EasyredmineBudgetQuotas
     end
 
     def check_if_budget_quota_valid
-
-      return if self.easy_locked? || self.current_bq.nil?
+      return if self.easy_locked? || self.current_bq.nil? || self.is_budget_quota?
 
       # check if choosen source is available
       if budget_quota_source.to_s.match(/budget|quota/)
