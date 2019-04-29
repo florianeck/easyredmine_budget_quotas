@@ -117,18 +117,11 @@ module EasyredmineBudgetQuotas
     def assign_budget_quota(bq_id)
       entry = TimeEntry.find(bq_id)
 
-      cf_id      = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_id' }
-      cf_source  = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_source' }
-
       self.custom_field_values = {cf_id.id => bq_id, cf_source.id => (entry.is_budget? ? 'budget' : 'quota')}
       self.save
     end
 
     def unassign_budget_quota
-      cf_id      = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_id' }
-      cf_source  = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_source' }
-      cf_value   = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_value' }
-
       self.custom_field_values = {cf_id.id => nil, cf_source.id => nil, cf_value.id => 0 }
       self.save
     end
@@ -204,6 +197,7 @@ module EasyredmineBudgetQuotas
 
             if assignable_hours < self.hours && (self.hours - assignable_hours) > 0
               # Split non-assignable hours value and store in other time entry
+
               create_next_time_entry(self.attributes.merge('hours' => self.hours - assignable_hours, 'comments' => "#{self.comments} (splitted #{(self.hours - assignable_hours).round(2)}h)"))
 
               # Assign currently applicable value
@@ -229,8 +223,6 @@ module EasyredmineBudgetQuotas
     end
 
     def assign_custom_field_value_for_ebq_budget_quota!(id: , value: )
-      cf_id     = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_id' }
-      cf_value  = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_value' }
       self.custom_field_values = {cf_id.id => id, cf_value.id => value}
     end
 
@@ -264,16 +256,25 @@ module EasyredmineBudgetQuotas
       end
     end
 
+    # getter methods for selecting the required custom fields that needs to be assiging automatically
+    def cf_id
+      @_cf_id ||= self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_id' }
+    end
+
+    def cf_source
+      @_cf_source ||= self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_source' }
+    end
+
+    def cf_value
+      @_cf_value ||= self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_value' }
+    end
+
     # Auto-assign the source of budget-quota to self.id if current entry is a budget/quota source.
     # this is required to get correct summed up values when grouping by 'source of budget quota'
     def set_self_ebq_budget_quota_id
       unless is_budget_quota?
         return
       else
-        # TODO: Refactor assignment of of those values, as it happens mutliple times with redundant code
-        cf_id       = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_id' }
-        cf_source   = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_source' }
-
         self.custom_field_values = {cf_id.id => self.id, cf_source.id => (self.is_budget? ? 'budget' : 'quota')}
       end
     end
@@ -281,7 +282,6 @@ module EasyredmineBudgetQuotas
     def re_save_for_setting_self_ebq_budget_quota_id
       self.save
     end
-
 
   end
 end
