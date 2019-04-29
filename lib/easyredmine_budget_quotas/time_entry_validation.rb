@@ -5,6 +5,7 @@ module EasyredmineBudgetQuotas
     included do
       before_save :check_if_budget_quota_valid, if: [:applies_on_budget_or_quota?, :project_uses_budget_quota?]
       before_save :verify_valid_from_to, if: [:is_budget_quota?, :project_uses_budget_quota?]
+      after_create :re_save_for_setting_self_ebq_budget_quota_id, if: [:is_budget_quota?]
       before_save :set_self_ebq_budget_quota_id
       before_save :set_exceeded_flag
     end
@@ -201,7 +202,7 @@ module EasyredmineBudgetQuotas
 
             assignable_hours = assignable_value/value_per_hour
 
-            if assignable_hours < self.hours
+            if assignable_hours < self.hours && (self.hours - assignable_hours) > 0
               # Split non-assignable hours value and store in other time entry
               create_next_time_entry(self.attributes.merge('hours' => self.hours - assignable_hours, 'comments' => "#{self.comments} (splitted #{(self.hours - assignable_hours).round(2)}h)"))
 
@@ -270,11 +271,15 @@ module EasyredmineBudgetQuotas
         return
       else
         # TODO: Refactor assignment of of those values, as it happens mutliple times with redundant code
-        cf_id = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_id' }
-        cf_source  = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_source' }
+        cf_id       = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_id' }
+        cf_source   = self.available_custom_fields.detect {|cf| cf.internal_name == 'ebq_budget_quota_source' }
 
         self.custom_field_values = {cf_id.id => self.id, cf_source.id => (self.is_budget? ? 'budget' : 'quota')}
       end
+    end
+
+    def re_save_for_setting_self_ebq_budget_quota_id
+      self.save
     end
 
 
