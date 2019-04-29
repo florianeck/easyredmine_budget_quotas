@@ -195,10 +195,11 @@ module EasyredmineBudgetQuotas
 
             assignable_hours = assignable_value/value_per_hour
 
-            if assignable_hours < self.hours && (self.hours - assignable_hours) > 0
-              # Split non-assignable hours value and store in other time entry
+            split_remaining_hours = (self.hours - assignable_hours).round(2)
 
-              create_next_time_entry(self.attributes.merge('hours' => self.hours - assignable_hours, 'comments' => "#{self.comments} (splitted #{(self.hours - assignable_hours).round(2)}h)"))
+            if assignable_hours < self.hours && split_remaining_hours > 0
+              # Split non-assignable hours value and store in other time entry
+              create_next_time_entry(self.attributes.merge('hours' => split_remaining_hours, 'comments' => "#{self.comments} (splitted #{split_remaining_hours}h)"))
 
               # Assign currently applicable value
               self.hours = assignable_hours
