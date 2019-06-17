@@ -187,8 +187,10 @@ module EasyredmineBudgetQuotas
               self.errors.add(:ebq_budget_quota_value, "No matching Budget/Quota found to assign non-splittable value of #{will_be_spent}")
               return false
             end
-          else# (can_be_spent_on_entries.first + current_bq.budget_quotas_tolerance_amount) < already_spent_on_entries.first+(will_be_spent-already_spent_on_self)
-
+          elsif can_be_spent_on_entries.sum < already_spent+will_be_spent
+            self.errors.add(:ebq_budget_quota_value, "Limit of #{can_be_spent_on_entries.sum} for #{budget_quota_source} will be exceeded (#{already_spent+will_be_spent}) - cant add entry")
+            return false
+          else
             # Checking the actual amount of assigable hours
             assignable_value = will_be_spent.to_f - ((already_spent_on_entries.first+will_be_spent).to_f - can_be_spent_on_entries.first)
             value_per_hour   = will_be_spent/self.hours
